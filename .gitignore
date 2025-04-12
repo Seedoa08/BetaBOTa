@@ -4,3 +4,4 @@ logs/
 backups/
 *.log
 config.json
+.DS_Store
