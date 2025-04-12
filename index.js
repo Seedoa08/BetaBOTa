@@ -1,7 +1,8 @@
+require('dotenv').config(); // Charger les variables d'environnement depuis .env
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { prefix } = require('./config.json');
+const prefix = process.env.BOT_PREFIX || '+'; // Lire le préfixe depuis les variables d'environnement; // Lire le préfixe depuis les variables d'environnement
 const token = process.env.DISCORD_TOKEN; // Lire le token depuis les variables d'environnement
 const { ownerId } = require('./config/owner');
 const { checkPermissions } = require('./utils/permissions');
