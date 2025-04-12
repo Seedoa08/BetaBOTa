@@ -1,10 +1,9 @@
-const { Configuration, OpenAIApi } = require('openai');
+const { OpenAIApi } = require('openai');
 require('dotenv').config();
 
-const configuration = new Configuration({
-    apiKey: process.env.OPENAI_API_KEY
+const openai = new OpenAIApi({
+    apiKey: process.env.OPENAI_API_KEY // Remplacez par votre clé API OpenAI
 });
-const openai = new OpenAIApi(configuration);
 
 async function analyze(message) {
     try {
