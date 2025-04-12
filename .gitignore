@@ -5,3 +5,4 @@ backups/
 *.log
 config.json
 .DS_Store
+commands/example.js
