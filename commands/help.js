@@ -1,4 +1,4 @@
-const { prefix } = require('../config.json');
+const prefix = process.env.BOT_PREFIX || '+'; // Lire le préfixe depuis les variables d'environnement
 
 module.exports = {
     name: 'help',
