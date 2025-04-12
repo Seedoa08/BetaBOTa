@@ -1,4 +1,4 @@
-const prefix = process.env.BOT_PREFIX || '+'; // Lire le préfixe depuis les variables d'environnement
+const { prefix } = require('../config/globals');
 
 module.exports = {
     name: 'help',
