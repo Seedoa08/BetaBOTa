@@ -1,15 +1,15 @@
 class AntiSpam {
     constructor() {
         this.messageCache = new Map();
-        this.warnThreshold = 5;  // Messages similaires
-        this.muteThreshold = 8;  // Messages similaires
+        this.warnThreshold = 8; // Nombre de messages similaires avant un avertissement
+        this.muteThreshold = 12; // Nombre de messages similaires avant un mute
+        this.timeWindow = 15000; // Fenêtre de temps en millisecondes (15 secondes)
     }
 
     check(message) {
-        const oneMinute = 60000;
-        const userId = message.author.id;
         const now = Date.now();
-        
+        const userId = message.author.id;
+
         if (!this.messageCache.has(userId)) {
             this.messageCache.set(userId, []);
         }
@@ -20,13 +20,16 @@ class AntiSpam {
             timestamp: now
         });
 
-        // Nettoyer les messages plus vieux qu'une minute
-        const recentMessages = userMessages.filter(msg => now - msg.timestamp < oneMinute);
+        // Nettoyer les messages plus vieux que la fenêtre de temps
+        const recentMessages = userMessages.filter(msg => now - msg.timestamp < this.timeWindow);
         this.messageCache.set(userId, recentMessages);
 
+        // Vérifier les messages similaires
+        const similarMessages = recentMessages.filter(msg => msg.content === message.content);
+
         return {
-            shouldWarn: recentMessages.length >= this.warnThreshold,
-            shouldMute: recentMessages.length >= this.muteThreshold
+            shouldWarn: similarMessages.length >= this.warnThreshold,
+            shouldMute: similarMessages.length >= this.muteThreshold
         };
     }
 }

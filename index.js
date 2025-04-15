@@ -121,7 +121,7 @@ client.on('messageCreate', async message => {
     if (spamCheck.shouldMute) {
         const member = message.member;
         if (member && member.moderatable) {
-            await member.timeout(3600000, 'Spam détecté');
+            await member.timeout(600000, 'Spam détecté'); // Mute de 10 minutes
             message.channel.send(`🛡️ ${member.user.tag} a été mute pour spam.`);
         }
     } else if (spamCheck.shouldWarn) {
