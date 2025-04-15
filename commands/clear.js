@@ -17,10 +17,26 @@ module.exports = {
             return message.reply('❌ Vous n\'avez pas la permission de gérer les messages.');
         }
 
-            if (!message.channel.permissionsFor(message.guild.members.me).has(PermissionsBitField.Flags.ManageMessages)) {
-                return message.reply('❌ Je n\'ai pas la permission de gérer les messages dans ce canal.');
-                    }
-                }
+        if (!message.channel.permissionsFor(message.guild.members.me).has(PermissionsBitField.Flags.ManageMessages)) {
+            return message.reply('❌ Je n\'ai pas la permission de gérer les messages dans ce canal.');
+        }
+
+        const amount = parseInt(args[0]);
+        if (isNaN(amount) || amount < 1 || amount > 100) {
+            return message.reply('❌ Veuillez fournir un nombre valide de messages à supprimer (1-100).');
+        }
+
+        if (amount > 50) {
+            const confirmationMessage = await message.reply(`⚠️ Vous êtes sur le point de supprimer ${amount} messages. Répondez par \`oui\` ou \`non\`.`);
+            const filter = response => response.author.id === message.author.id && ['oui', 'non'].includes(response.content.toLowerCase());
+            const collected = await message.channel.awaitMessages({ filter, max: 1, time: 15000 });
+
+            if (!collected.size || collected.first().content.toLowerCase() === 'non') {
+                return message.reply('❌ Suppression annulée.');
             }
-        
-           
+        }
+
+        // ...existing code...
+    }
+}
+

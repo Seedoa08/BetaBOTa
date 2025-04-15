@@ -41,6 +41,18 @@ module.exports = {
             return message.reply('❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.');
         }
 
+        if (user.id === message.author.id) {
+            return message.reply('❌ Vous ne pouvez pas vous bannir vous-même.');
+        }
+
+        if (user.id === message.guild.ownerId) {
+            return message.reply('❌ Vous ne pouvez pas bannir le propriétaire du serveur.');
+        }
+
+        if (user.id === message.client.user.id) {
+            return message.reply('❌ Vous ne pouvez pas bannir le bot.');
+        }
+
         const reason = args.slice(1).join(' ') || 'Aucune raison fournie.';
         const member = message.guild.members.cache.get(user.id);
         if (!member) {

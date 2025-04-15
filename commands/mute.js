@@ -38,6 +38,14 @@ module.exports = {
             return message.reply('❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.');
         }
 
+        if (user.id === message.guild.ownerId) {
+            return message.reply('❌ Vous ne pouvez pas mute le propriétaire du serveur.');
+        }
+
+        if (user.id === message.client.user.id) {
+            return message.reply('❌ Vous ne pouvez pas mute le bot.');
+        }
+
         const notify = args.includes('--notify');
         const silent = args.includes('--silent');
         args = args.filter(arg => !arg.startsWith('--'));

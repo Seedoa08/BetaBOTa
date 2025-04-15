@@ -8,13 +8,20 @@ module.exports = {
     permissions: 'OwnerOnly',
     async execute(message) {
         const ownerId = '1061373376767201360'; // Remplacez par votre ID
+
         if (message.author.id !== ownerId) {
             return message.reply('❌ Cette commande est réservée à l\'owner du bot.');
         }
 
         try {
             await message.reply('🔄 Redémarrage en cours...');
-            process.exit(0); // Quitte le processus pour permettre un redémarrage
+            
+            // Enregistrer le canal pour envoyer un message après redémarrage
+            const restartInfo = { channelId: message.channel.id };
+            require('fs').writeFileSync('./lastRestart.json', JSON.stringify(restartInfo, null, 4));
+
+            // Quitter le processus pour permettre un redémarrage
+            process.exit(0);
         } catch (error) {
             console.error('Erreur lors du redémarrage :', error);
             message.reply('❌ Une erreur est survenue lors du redémarrage.');

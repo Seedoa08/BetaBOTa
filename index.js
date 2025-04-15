@@ -9,6 +9,8 @@ const ErrorHandler = require('./utils/errorHandler');
 const antiSpam = require('./utils/antiSpam');
 const SanctionReminder = require('./utils/sanctionReminder');
 const modStats = require('./utils/modStats');
+const wordlist = require('./wordlist.json'); // Charger la wordlist
+const BotBrain = require('./utils/botBrain');
 
 const client = new Client({
     intents: [
@@ -17,6 +19,8 @@ const client = new Client({
         GatewayIntentBits.MessageContent
     ]
 });
+
+const botBrain = new BotBrain();
 
 // Système de logs avancé avec rotation
 const logsDir = './logs';
@@ -58,61 +62,162 @@ client.once('ready', async () => {
     isInitialized = true;
 
     try {
-        // Synchronisation des fichiers
-        const filesToSync = [
-            './warnings.json',
-            './authorizedUsers.json',
-            './muteHistory.json',
-            './logs/moderation.json'
-        ];
-
-        for (const file of filesToSync) {
-            if (!fs.existsSync(file)) {
-                const dir = path.dirname(file);
-                if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir, { recursive: true });
-                }
-                fs.writeFileSync(file, JSON.stringify({}, null, 4));
-                console.log(`📁 Fichier créé : ${file}`);
-            }
-        }
-
-        // Vérification et création des dossiers nécessaires
-        const directories = ['./logs', './backups'];
-        directories.forEach(dir => {
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir);
-                console.log(`📁 Dossier créé : ${dir}`);
-            }
-        });
-
         console.log('Bot de modération en ligne !');
-        if (!fs.existsSync(logsDir)) {
-            fs.mkdirSync(logsDir, { recursive: true });
+        logEvent('info', 'Le bot est en ligne et synchronisé.');
+
+        // Message de redémarrage
+        if (fs.existsSync('./lastRestart.json')) {
+            const lastRestartInfo = JSON.parse(fs.readFileSync('./lastRestart.json', 'utf8'));
+            if (lastRestartInfo?.channelId) {
+                const channel = client.channels.cache.get(lastRestartInfo.channelId);
+                if (channel) {
+                    await channel.send('✅ Redémarrage effectué avec succès ! Tous les fichiers sont synchronisés.');
+                }
+                fs.unlinkSync('./lastRestart.json');
+            }
         }
-                logEvent('info', 'Le bot est en ligne et synchronisé');
-            } catch (error) {
-                console.error('Erreur lors de l\'initialisation du bot :', error);
-                logEvent('error', `Erreur lors de l'initialisation : ${error.message}`);
-            }
+    } catch (error) {
+        console.error('Erreur lors de la synchronisation :', error);
+        logEvent('error', `Erreur de synchronisation : ${error.message}`);
+    }
+
+    client.errorHandler = new ErrorHandler(client);
+});
+
+// Gestion des erreurs globales
+process.on('unhandledRejection', (error) => {
+    console.error('Erreur non gérée :', error);
+    logEvent('error', `Erreur non gérée : ${error.message}`);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Exception non gérée :', error);
+    logEvent('error', `Exception non gérée : ${error.message}`);
+});
+
+// Système de cooldown global
+const globalCooldowns = new Map();
+
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    // Analyse comportementale avancée
+    const behavior = await botBrain.analyzeUserBehavior(message);
+    
+    // Log des comportements suspects
+    if (behavior.trustScore < 70) {
+        logEvent('suspicious', `Comportement suspect de ${message.author.tag} (Trust Score: ${behavior.trustScore})`);
+    }
+
+    // Vérification des mots interdits et analyse contextuelle
+    const analysis = await botBrain.analyzeMessage(message);
+    if (analysis.shouldAct) {
+        await botBrain.handleViolation(message, analysis);
+        return;
+    }
+
+    // Auto-modération et apprentissage
+    await botBrain.autoModerate(message);
+    
+    // Apprentissage et analyse du contexte
+    botBrain.learn(message);
+    
+    // Si le message mentionne le bot, générer une réponse
+    if (message.mentions.has(client.user)) {
+        const response = botBrain.generateResponse(message);
+        if (response.content) {
+            await message.reply(response.content);
+        }
+    }
+
+    // Vérification des mots interdits et limites
+    const messageContent = message.content.toLowerCase();
+    const forbiddenWords = wordlist.forbidden || [];
+    const warningWords = wordlist.warning || [];
+
+    // Vérifier les mots strictement interdits
+    const containsForbiddenWord = forbiddenWords.some(word => messageContent.includes(word));
+    if (containsForbiddenWord) {
+        try {
+            await message.delete();
+            const moderationEmbed = {
+                color: 0xff0000,
+                title: '⚠️ Message supprimé',
+                description: 'Un message contenant des mots interdits a été supprimé.',
+                fields: [
+                    { name: 'Auteur', value: `${message.author.tag}`, inline: true }
+                ],
+                footer: {
+                    text: `Modération automatique`,
+                    icon_url: message.author.displayAvatarURL({ dynamic: true })
+                },
+                timestamp: new Date()
+            };
+
+            await message.channel.send({ embeds: [moderationEmbed] }).then(msg => {
+                setTimeout(() => msg.delete(), 5000);
+            });
+        } catch (error) {
+            console.error('Erreur lors de la suppression du message interdit:', error);
+        }
+        return;
+    }
+
+    // Vérifier les mots limites
+    const containsWarningWord = warningWords.some(word => messageContent.includes(word));
+    if (containsWarningWord) {
+        const warningEmbed = {
+            color: 0xffa500,
+            title: '⚠️ Attention au langage',
+            description: 'Ce message contient des mots limites. Merci de rester courtois.',
+            footer: {
+                text: `Message à ${message.author.tag}`,
+                icon_url: message.author.displayAvatarURL({ dynamic: true })
+            },
+            timestamp: new Date()
+        };
+
+        await message.channel.send({ embeds: [warningEmbed] }).then(msg => {
+            setTimeout(() => msg.delete(), 5000);
         });
-        
-        client.on('messageCreate', async (message) => {
-            if (!message.content.startsWith(prefix) || message.author.bot) return;
-        
-            const args = message.content.slice(prefix.length).trim().split(/ +/);
-            const commandName = args.shift().toLowerCase();
-        
-            const command = client.commands.get(commandName);
-            if (!command) return;
-        
-            try {
-                await command.execute(message, args);
-            } catch (error) {
-                console.error('Erreur lors de l\'exécution de la commande :', error);
-                logEvent('error', `Erreur lors de l'exécution de la commande ${commandName}: ${error.message}`);
-                message.reply('Une erreur est survenue lors de l\'exécution de cette commande.');
-            }
-        });
-        
-        client.login(token);
+    }
+
+    if (!message.content.startsWith(prefix) || message.author.bot) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    const commandName = args.shift().toLowerCase();
+
+    const command = client.commands.get(commandName);
+    if (!command) return;
+
+    // Gestion du cooldown global
+    const cooldownTime = 3000; // 3 secondes
+    const now = Date.now();
+    if (globalCooldowns.has(message.author.id)) {
+        const expirationTime = globalCooldowns.get(message.author.id) + cooldownTime;
+        if (now < expirationTime) {
+            const timeLeft = ((expirationTime - now) / 1000).toFixed(1);
+            return message.reply(`⏳ Veuillez attendre ${timeLeft} seconde(s) avant d'exécuter une autre commande.`);
+        }
+    }
+    globalCooldowns.set(message.author.id, now);
+    setTimeout(() => globalCooldowns.delete(message.author.id), cooldownTime);
+
+    try {
+        // Vérification des permissions manquantes
+        if (command.permissions && !message.member.permissions.has(command.permissions)) {
+            return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande (\`${command.permissions}\`).`);
+        }
+
+        // Log de l'exécution de la commande
+        logEvent('command', `Commande exécutée : ${commandName} par ${message.author.tag} (${message.author.id}) dans ${message.guild.name} (${message.guild.id})`);
+
+        await command.execute(message, args);
+    } catch (error) {
+        console.error('Erreur lors de l\'exécution de la commande :', error);
+        logEvent('error', `Erreur lors de l'exécution de la commande ${commandName}: ${error.message}`);
+        message.reply('Une erreur est survenue lors de l\'exécution de cette commande.');
+    }
+});
+
+client.login(token);
