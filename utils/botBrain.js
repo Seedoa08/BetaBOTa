@@ -408,6 +408,88 @@ class BotBrain {
         const uniqueMessages = new Set(content);
         return uniqueMessages.size < content.length * 0.5; // Plus de 50% de messages similaires
     }
+
+    async analyzeMessage(message) {
+        const content = message.content.toLowerCase();
+        const result = {
+            shouldAct: false,
+            toxicity: 0,
+            spamScore: 0,
+            patterns: [],
+            action: null
+        };
+
+        // Analyse du contenu
+        const toxicityScore = await this.analyzeToxicity(content);
+        const patterns = this.detectPatterns(content);
+        const behavior = this.userBehavior.get(message.author.id);
+
+        result.toxicity = toxicityScore;
+        result.patterns = patterns;
+        result.spamScore = this.isSpamming(behavior?.lastMessages || []) ? 1 : 0;
+
+        // Déterminer si une action est nécessaire
+        if (toxicityScore > 0.7 || result.spamScore > 0.8 || patterns.spam) {
+            result.shouldAct = true;
+            result.action = this.determineAction(toxicityScore, result.spamScore, patterns);
+        }
+
+        return result;
+    }
+
+    determineAction(toxicity, spamScore, patterns) {
+        if (toxicity > 0.9 || spamScore > 0.9) {
+            return 'timeout';
+        } else if (patterns.spam || patterns.repeatedChars) {
+            return 'delete';
+        } else if (toxicity > 0.7 || spamScore > 0.7) {
+            return 'warn';
+        }
+        return 'monitor';
+    }
+
+    async handleViolation(message, analysis) {
+        switch (analysis.action) {
+            case 'timeout':
+                await this.handleHighRisk(message);
+                break;
+            case 'delete':
+                await message.delete().catch(console.error);
+                await this.sendWarning(message);
+                break;
+            case 'warn':
+                await this.sendWarning(message);
+                break;
+            case 'monitor':
+                this.logAutoMod({
+                    type: 'monitor',
+                    userId: message.author.id,
+                    messageContent: message.content,
+                    analysis: analysis
+                });
+                break;
+        }
+    }
+
+    async sendWarning(message) {
+        const warningEmbed = {
+            color: 0xFFAA00,
+            title: '⚠️ Avertissement',
+            description: 'Votre comportement a été détecté comme potentiellement inapproprié.',
+            footer: {
+                text: 'Auto-modération',
+                icon_url: message.client.user.displayAvatarURL()
+            },
+            timestamp: new Date()
+        };
+
+        try {
+            const warningMsg = await message.channel.send({ embeds: [warningEmbed] });
+            setTimeout(() => warningMsg.delete().catch(console.error), 5000);
+        } catch (error) {
+            console.error('Erreur lors de l\'envoi de l\'avertissement:', error);
+        }
+    }
 }
 
 module.exports = BotBrain;
