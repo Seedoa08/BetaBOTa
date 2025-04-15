@@ -149,4 +149,7 @@ process.on('unhandledRejection', async (error) => {
     console.error('Erreur non gérée :', error);
 });
 
-client.login(token);
+client.login(token).catch(error => {
+    console.error('Erreur lors de la connexion du bot :', error.message);
+    process.exit(1); // Quitte le processus si le token est invalide
+});
