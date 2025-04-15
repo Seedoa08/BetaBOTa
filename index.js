@@ -7,7 +7,6 @@ const token = process.env.DISCORD_TOKEN; // Lire le token depuis les variables d
 const { ownerId } = require('./config/owner');
 const { checkPermissions } = require('./utils/permissions');
 const ErrorHandler = require('./utils/errorHandler');
-const AutoModerator = require('./utils/automod');
 
 const client = new Client({
     intents: [
@@ -112,47 +111,7 @@ client.once('ready', async () => {
 client.on('messageCreate', async message => {
     if (!isInitialized || message.author.bot) return;
 
-    // Vérification AutoMod pour tous les messages
-    try {
-        const result = await AutoModerator.analyze(message);
-        if (result?.flagged) {
-            const modChannel = message.guild.channels.cache.find(c => c.name === 'mod-logs');
-            if (modChannel) {
-                const modEmbed = {
-                    color: 0xff0000,
-                    title: '🛡️ AutoMod',
-                    description: `Message inapproprié détecté de ${message.author.tag}`,
-                    fields: [
-                        { name: 'Raison', value: result.reason },
-                        { name: 'Action', value: result.action },
-                        { name: 'Message', value: message.content.slice(0, 1024) }
-                    ],
-                    timestamp: new Date()
-                };
-                await modChannel.send({ embeds: [modEmbed] });
-            }
-
-            // Appliquer l'action
-            switch (result.action) {
-                case 'warn':
-                    const warnCommand = client.commands.get('warn');
-                    if (warnCommand) {
-                        await warnCommand.execute(message, [message.author.id, `AutoMod: ${result.reason}`]);
-                    }
-                    break;
-                case 'mute':
-                    if (message.member.moderatable) {
-                        await message.member.timeout(3600000, `AutoMod: ${result.reason}`);
-                    }
-                    break;
-            }
-
-            // Supprimer le message inapproprié
-            await message.delete().catch(() => {});
-        }
-    } catch (error) {
-        console.error('Erreur AutoMod :', error);
-    }
+    // Supprimer la vérification AutoMod
 
     // Traitement des commandes
     if (message.content.startsWith(prefix)) {
