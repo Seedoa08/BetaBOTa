@@ -6,6 +6,9 @@ const token = 'MTM0OTc4NTYwMzMxMDYxNjYwNw.G7cV1k.Rk-cICyfno2cpb2qiGbEWYZ2jtYg6zk
 const { ownerId } = require('./config/owner');
 const { checkPermissions } = require('./utils/permissions');
 const ErrorHandler = require('./utils/errorHandler');
+const antiSpam = require('./utils/antiSpam');
+const SanctionReminder = require('./utils/sanctionReminder');
+const modStats = require('./utils/modStats');
 
 const client = new Client({
     intents: [
@@ -107,10 +110,23 @@ client.once('ready', async () => {
     client.errorHandler = new ErrorHandler(client);
 });
 
+// Initialiser le système de rappel de sanctions
+const sanctionReminder = new SanctionReminder(client);
+
 client.on('messageCreate', async message => {
     if (!isInitialized || message.author.bot) return;
 
-    // Supprimer la vérification AutoMod
+    // Vérification anti-spam
+    const spamCheck = antiSpam.check(message);
+    if (spamCheck.shouldMute) {
+        const member = message.member;
+        if (member && member.moderatable) {
+            await member.timeout(3600000, 'Spam détecté');
+            message.channel.send(`🛡️ ${member.user.tag} a été mute pour spam.`);
+        }
+    } else if (spamCheck.shouldWarn) {
+        message.channel.send(`⚠️ ${message.author}, merci de ne pas spammer.`);
+    }
 
     // Traitement des commandes
     if (message.content.startsWith(prefix)) {
@@ -146,6 +162,78 @@ client.on('messageCreate', async message => {
 // Gestion des erreurs globales
 process.on('unhandledRejection', async (error) => {
     console.error('Erreur non gérée :', error);
+});
+
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    if (oldMember.communicationDisabledUntilTimestamp !== newMember.communicationDisabledUntilTimestamp) {
+        const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
+        logs.push({
+            action: 'mute',
+            user: { id: newMember.id, tag: newMember.user.tag },
+            moderator: null, // Discord ne fournit pas directement le modérateur ici
+            reason: 'Mute/Unmute détecté',
+            date: new Date().toISOString()
+        });
+        fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
+    }
+});
+
+client.on('guildBanAdd', async (ban) => {
+    const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
+    logs.push({
+        action: 'ban',
+        user: { id: ban.user.id, tag: ban.user.tag },
+        moderator: null, // Discord ne fournit pas directement le modérateur ici
+        reason: 'Bannissement détecté',
+        date: new Date().toISOString()
+    });
+    fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
+
+    const audit = await ban.guild.fetchAuditLogs({
+        type: 'MEMBER_BAN_ADD',
+        limit: 1
+    });
+    const entry = audit.entries.first();
+    if (entry) {
+        modStats.addAction(entry.executor.id, 'bans');
+    }
+});
+
+let lastDeletedMessage = null;
+
+client.on('messageDelete', async (message) => {
+    if (!message.partial) {
+        lastDeletedMessage = message;
+    }
+    const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
+    logs.push({
+        action: 'messageDelete',
+        user: { id: message.author.id, tag: message.author.tag },
+        channel: { id: message.channel.id, name: message.channel.name },
+        reason: 'Message supprimé',
+        date: new Date().toISOString()
+    });
+    fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
+});
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
+    if (!oldState.channel && newState.channel) {
+        logs.push({
+            action: 'voiceJoin',
+            user: { id: newState.id, tag: newState.member.user.tag },
+            channel: { id: newState.channel.id, name: newState.channel.name },
+            date: new Date().toISOString()
+        });
+    } else if (oldState.channel && !newState.channel) {
+        logs.push({
+            action: 'voiceLeave',
+            user: { id: oldState.id, tag: oldState.member.user.tag },
+            channel: { id: oldState.channel.id, name: oldState.channel.name },
+            date: new Date().toISOString()
+        });
+    }
+    fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
 });
 
 client.login(token).catch(error => {

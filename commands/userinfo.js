@@ -16,6 +16,12 @@ module.exports = {
             .map(role => `<@&${role.id}>`)
             .join(' ') || 'Aucun rôle' : 'Aucun rôle';
 
+        const activities = member?.presence?.activities || [];
+        const activityList = activities.map(activity => {
+            const type = activity.type === 'CUSTOM' ? 'Statut personnalisé' : activity.type.toLowerCase();
+            return `**${type}**: ${activity.name || activity.state || 'Non spécifié'}`;
+        }).join('\n') || 'Aucune activité visible';
+
         const userInfoEmbed = {
             color: 0x0099ff,
             title: `Informations sur ${user.tag}`,
@@ -25,7 +31,8 @@ module.exports = {
                 { name: 'Pseudo', value: member ? member.displayName : 'Non disponible', inline: true },
                 { name: 'Compte créé le', value: `<t:${Math.floor(user.createdTimestamp / 1000)}:F>`, inline: false },
                 { name: 'Rejoint le serveur le', value: member ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:F>` : 'Non disponible', inline: false },
-                { name: `Rôles [${member ? member.roles.cache.size - 1 : 0}]`, value: roles }
+                { name: `Rôles [${member ? member.roles.cache.size - 1 : 0}]`, value: roles },
+                { name: 'Activités', value: activityList }
             ],
             footer: {
                 text: `Demandé par ${message.author.tag}`,

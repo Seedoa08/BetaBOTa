@@ -88,19 +88,8 @@ module.exports = {
             timestamp: new Date()
         };
 
-        // Ajouter des informations sur les salons épinglés si présents
-        const featuredChannels = guild.channels.cache
-            .filter(channel => channel.flags.has('FEATURED'))
-            .map(channel => channel.toString())
-            .join(', ');
-
-        if (featuredChannels) {
-            serverInfoEmbed.fields.push({
-                name: '📌 Salons mis en avant',
-                value: featuredChannels,
-                inline: false
-            });
-        }
+        // Supprimer la section des salons "mis en avant" car le flag `FEATURED` est invalide
+        // Vous pouvez ajouter d'autres informations pertinentes ici si nécessaire
 
         // Statistiques de sécurité
         serverInfoEmbed.fields.push({

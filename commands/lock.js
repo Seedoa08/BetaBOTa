@@ -10,26 +10,41 @@ module.exports = {
         { name: '[message]', description: 'Message à afficher après le verrouillage (facultatif).' }
     ],
     async execute(message, args) {
-        const hasPermission = checkPermissions(message, 'ManageChannels');
-        if (!hasPermission) {
+        // Vérifiez si l'utilisateur a la permission de gérer les canaux
+        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
             return message.reply('❌ Vous n\'avez pas la permission de verrouiller les canaux.');
         }
 
+        // Vérifiez si le bot a la permission de gérer les permissions du canal
         const channel = message.channel;
-
         if (!channel.permissionsFor(message.guild.members.me).has(PermissionsBitField.Flags.ManageChannels)) {
             return message.reply('❌ Je n\'ai pas la permission de gérer les permissions de ce canal.');
         }
 
-        const currentPermissions = channel.permissionsFor(channel.guild.roles.everyone);
+        // Vérifiez si le canal est déjà verrouillé
+        const currentPermissions = channel.permissionsFor(message.guild.roles.everyone);
         if (!currentPermissions.has(PermissionsBitField.Flags.SendMessages)) {
             return message.reply('❌ Ce canal est déjà verrouillé.');
         }
 
         try {
-            await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { SendMessages: false });
+            // Appliquez les permissions pour verrouiller le canal
+            await channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false });
+
+            // Message de confirmation
             const lockMessage = args.join(' ') || '🔒 Ce canal a été verrouillé.';
-            message.reply(`✅ Le canal a été verrouillé.\n${lockMessage}`);
+            const lockEmbed = {
+                color: 0xff0000,
+                title: '🔒 Canal verrouillé',
+                description: lockMessage,
+                footer: {
+                    text: `Verrouillé par ${message.author.tag}`,
+                    icon_url: message.author.displayAvatarURL({ dynamic: true })
+                },
+                timestamp: new Date()
+            };
+
+            await message.channel.send({ embeds: [lockEmbed] });
         } catch (error) {
             console.error('Erreur lors du verrouillage du canal:', error);
             message.reply('❌ Une erreur est survenue lors du verrouillage du canal.');

@@ -9,7 +9,7 @@ module.exports = {
         const categories = {
             "🛡️ Modération": ["ban", "kick", "mute", "warn", "clear", "lock", "unlock", "nuke", "slowmode"],
             "⚙️ Configuration": ["serverinfo", "userinfo", "owneronly", "role"],
-            "📊 Utilitaires": ["ping", "help", "info", "restart"],
+            "📊 Utilitaires": ["ping", "help", "helpall", "info", "restart"],
             "🎭 Gestion des sanctions": ["warnings", "clearwarns", "tempmute", "unmute"]
         };
 

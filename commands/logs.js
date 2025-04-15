@@ -1,80 +1,82 @@
-const { PermissionsBitField } = require('discord.js');
+const fs = require('fs');
+const logsFile = './logs/moderation.json';
 
 module.exports = {
     name: 'logs',
-    description: 'Configure et gère les logs du serveur',
-    usage: '+logs <set/enable/disable/config/status> [#canal] [options]',
-    permissions: 'Administrator',
+    description: 'Affiche les logs d\'actions de modération et d\'événements vocaux.',
+    usage: '+logs [action] [@utilisateur]',
+    permissions: 'ManageMessages',
     variables: [
-        { name: 'set #canal', description: 'Définit le canal des logs' },
-        { name: 'enable <type>', description: 'Active un type de logs spécifique (messages/moderation/voice/members/all)' },
-        { name: 'disable <type>', description: 'Désactive un type de logs spécifique' },
-        { name: 'config', description: 'Configure les paramètres des logs' },
-        { name: 'status', description: 'Affiche le statut actuel des logs' },
-        { name: 'types', description: 'Liste tous les types de logs disponibles' },
-        { name: '--silent', description: 'Option pour masquer les logs de commandes basiques' },
-        { name: '--webhook', description: 'Utilise un webhook pour les logs (plus propre)' },
-        { name: '--color <hex>', description: 'Définit la couleur des embeds de logs' }
-    ],
-    subcommands: {
-        set: {
-            usage: '+logs set #canal',
-            description: 'Définit le canal où seront envoyés les logs'
-        },
-        enable: {
-            usage: '+logs enable <type>',
-            description: 'Active un type de logs spécifique',
-            types: [
-                'messages (suppressions, modifications)',
-                'moderation (bans, kicks, mutes)',
-                'voice (connexions, déconnexions)',
-                'members (joins, leaves, nicknames)',
-                'roles (ajouts, retraits)',
-                'channels (créations, suppressions)',
-                'all (tous les types)'
-            ]
-        },
-        config: {
-            usage: '+logs config <paramètre> <valeur>',
-            parameters: [
-                'webhook (true/false)',
-                'color (code hexadécimal)',
-                'silent (true/false)',
-                'format (embed/text/both)'
-            ]
-        }
-    },
-    examples: [
-        '+logs set #logs-serveur',
-        '+logs enable messages voice',
-        '+logs config webhook true',
-        '+logs disable moderation',
-        '+logs status',
-        '+logs set #logs --webhook --color #FF0000'
+        { name: '[action]', description: 'Filtrer par action (ban, mute, kick, messageDelete, voiceJoin, voiceLeave).' },
+        { name: '[@utilisateur]', description: 'Filtrer par utilisateur mentionné.' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Cette commande nécessite les permissions Administrateur.');
+        if (!message.member.permissions.has('ManageMessages')) {
+            return message.reply('❌ Vous n\'avez pas la permission de voir les logs.');
         }
 
-        const subCommand = args[0]?.toLowerCase();
-        const channel = message.mentions.channels.first();
+        // Vérifiez si le fichier de logs existe
+        if (!fs.existsSync(logsFile)) {
+            return message.reply('❌ Aucun log n\'a été trouvé.');
+        }
 
-        switch (subCommand) {
-            case 'set':
-                if (!channel) {
-                    return message.reply('❌ Veuillez mentionner un canal pour les logs.');
+        try {
+            const logs = JSON.parse(fs.readFileSync(logsFile, 'utf8'));
+            if (!Array.isArray(logs) || logs.length === 0) {
+                return message.reply('❌ Aucun log n\'a été trouvé.');
+            }
+
+            // Filtrage par action
+            const actionFilter = args[0]?.toLowerCase();
+            const userFilter = message.mentions.users.first();
+
+            let filteredLogs = logs;
+
+            if (actionFilter) {
+                filteredLogs = filteredLogs.filter(log => log.action === actionFilter);
+                if (filteredLogs.length === 0) {
+                    return message.reply(`❌ Aucun log trouvé pour l'action \`${actionFilter}\`.`);
                 }
-                message.client.logsChannel = channel.id;
-                message.reply(`✅ Canal des logs défini sur ${channel}`);
-                break;
+            }
 
-            case 'stats':
-                // Afficher les statistiques des logs
-                break;
+            if (userFilter) {
+                filteredLogs = filteredLogs.filter(log => log.user?.id === userFilter.id || log.moderator?.id === userFilter.id);
+                if (filteredLogs.length === 0) {
+                    return message.reply(`❌ Aucun log trouvé pour l'utilisateur ${userFilter.tag}.`);
+                }
+            }
 
-            default:
-                message.reply('❌ Utilisation: `+logs set #canal` ou `+logs stats`');
+            // Limitez les logs affichés à 10 pour éviter les spams
+            const logsToShow = filteredLogs.slice(0, 10).map((log, index) => {
+                const logDetails = [
+                    `**Action:** \`${log.action}\``,
+                    `**Utilisateur:** ${log.user ? `${log.user.tag} (${log.user.id})` : 'N/A'}`,
+                    `**Modérateur:** ${log.moderator ? `${log.moderator.tag} (${log.moderator.id})` : 'N/A'}`,
+                    `**Raison:** ${log.reason || 'Aucune'}`,
+                    `**Date:** <t:${Math.floor(new Date(log.date).getTime() / 1000)}:F>`
+                ];
+
+                if (log.channel) logDetails.push(`**Canal:** <#${log.channel.id}>`);
+                if (log.extra) logDetails.push(`**Détails supplémentaires:** ${log.extra}`);
+
+                return `**${index + 1}.**\n${logDetails.join('\n')}`;
+            });
+
+            const logsEmbed = {
+                color: 0x0099ff,
+                title: '📋 Logs',
+                description: logsToShow.join('\n\n'),
+                footer: {
+                    text: `Demandé par ${message.author.tag}`,
+                    icon_url: message.author.displayAvatarURL({ dynamic: true })
+                },
+                timestamp: new Date()
+            };
+
+            message.channel.send({ embeds: [logsEmbed] });
+        } catch (error) {
+            console.error('Erreur lors de la lecture des logs:', error);
+            message.reply('❌ Une erreur est survenue lors de la lecture des logs.');
         }
     }
 };
