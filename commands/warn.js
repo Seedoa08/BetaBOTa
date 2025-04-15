@@ -3,6 +3,7 @@ const warningsFile = './warnings.json';
 const ms = require('ms');
 const userResolver = require('../utils/userResolver');
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/ownerCheck');
 
 module.exports = {
     name: 'warn',
@@ -26,6 +27,11 @@ module.exports = {
         const user = await userResolver(message.client, userIdentifier);
         if (!user) {
             return message.reply('❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.');
+        }
+
+        // Protection de l'owner
+        if (isOwner(user.id)) {
+            return message.reply('❌ Vous ne pouvez pas avertir le propriétaire du bot.');
         }
 
         const reason = args.slice(1).join(' ') || 'Aucune raison fournie.';

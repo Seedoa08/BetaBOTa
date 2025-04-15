@@ -1,34 +1,35 @@
-let lastDeletedMessages = new Map(); // Utiliser une Map pour gérer les messages supprimés par salon
+const { PermissionsBitField } = require('discord.js');
 
 module.exports = {
     name: 'snipe',
-    description: 'Affiche le dernier message supprimé dans ce salon.',
+    description: 'Affiche le dernier message supprimé dans le canal',
     usage: '+snipe',
-    permissions: 'Aucune',
+    permissions: 'ManageMessages',
     async execute(message) {
-        const deletedMessage = lastDeletedMessages.get(message.channel.id);
+        const snipedMessage = message.client.snipes.get(message.channel.id);
 
-        if (!deletedMessage) {
-            return message.reply('❌ Aucun message supprimé récemment dans ce salon.');
+        if (!snipedMessage) {
+            return message.reply('❌ Aucun message supprimé récemment dans ce canal.');
         }
 
-        const snipeEmbed = {
-            color: 0xff9900,
+        const embed = {
+            color: 0x0099ff,
             author: {
-                name: deletedMessage.author.tag,
-                icon_url: deletedMessage.author.displayAvatarURL({ dynamic: true })
+                name: snipedMessage.author.tag,
+                icon_url: snipedMessage.author.displayAvatarURL({ dynamic: true })
             },
-            description: deletedMessage.content || '*Aucun contenu (peut-être un embed ou une image)*',
+            description: snipedMessage.content || '*Aucun contenu textuel*',
             footer: {
-                text: `Message supprimé dans #${deletedMessage.channel.name}`
+                text: `Message supprimé • ${snipedMessage.date}`
             },
-            timestamp: deletedMessage.createdAt
+            timestamp: new Date()
         };
 
-        if (deletedMessage.attachments.size > 0) {
-            snipeEmbed.image = { url: deletedMessage.attachments.first().proxyURL };
+        // Ajout des images si présentes dans le message supprimé
+        if (snipedMessage.image) {
+            embed.image = { url: snipedMessage.image };
         }
 
-        message.channel.send({ embeds: [snipeEmbed] });
+        await message.channel.send({ embeds: [embed] });
     }
 };

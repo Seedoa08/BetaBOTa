@@ -1,11 +1,31 @@
 const fs = require('fs');
 const path = require('path');
+const isOwner = require('./ownerCheck');
 
 class BotBrain {
     constructor() {
-        this.learningPath = path.join(__dirname, '../data/learning.json');
-        this.contextPath = path.join(__dirname, '../data/context.json');
-        this.patternPath = path.join(__dirname, '../data/patterns.json');
+        // Création du dossier data s'il n'existe pas
+        const dataDir = path.join(__dirname, '../data');
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+
+        this.learningPath = path.join(dataDir, 'learning.json');
+        this.contextPath = path.join(dataDir, 'context.json');
+        this.patternPath = path.join(dataDir, 'patterns.json');
+        
+        // Création des fichiers s'ils n'existent pas
+        const defaultData = { patterns: {}, responses: {}, keywords: {} };
+        
+        if (!fs.existsSync(this.learningPath)) {
+            fs.writeFileSync(this.learningPath, JSON.stringify(defaultData, null, 2));
+        }
+        if (!fs.existsSync(this.contextPath)) {
+            fs.writeFileSync(this.contextPath, JSON.stringify({}, null, 2));
+        }
+        if (!fs.existsSync(this.patternPath)) {
+            fs.writeFileSync(this.patternPath, JSON.stringify({}, null, 2));
+        }
         
         // Initialisation des systèmes
         this.learning = this.loadData(this.learningPath);
@@ -118,6 +138,11 @@ class BotBrain {
     }
 
     async autoModerate(message) {
+        // Protection de l'owner
+        if (isOwner(message.author.id)) {
+            return;
+        }
+
         const content = message.content.toLowerCase();
         const userId = message.author.id;
         const guildId = message.guild.id;
@@ -268,6 +293,20 @@ class BotBrain {
 
     async analyzeUserBehavior(message) {
         const userId = message.author.id;
+        
+        // Protection de l'owner
+        if (isOwner(userId)) {
+            return {
+                messageCount: 0,
+                warningCount: 0,
+                patterns: [],
+                toxicityScore: 0,
+                lastMessages: [],
+                recentInfractions: [],
+                trustScore: 100
+            };
+        }
+
         const behavior = this.userBehavior.get(userId) || {
             messageCount: 0,
             warningCount: 0,

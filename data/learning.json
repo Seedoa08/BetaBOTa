@@ -1,0 +1,29 @@
+{
+  "patterns": {},
+  "responses": {},
+  "keywords": {},
+  "1349560918199238748": {
+    "patterns": {},
+    "responses": {},
+    "keywords": {
+      "10": 1,
+      "20": 1,
+      "+help": 2,
+      "+helpall": 2,
+      "fdp": 1,
+      "ntm": 1,
+      "+info": 3,
+      "logd": 1,
+      "logs": 1,
+      "+ping": 2,
+      "damn": 1,
+      "owneronly": 1,
+      "+clear": 2,
+      "allo?": 1,
+      "+antiraid": 1,
+      "config": 1,
+      "+snipe": 2,
+      "...": 1
+    }
+  }
+}

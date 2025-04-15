@@ -22,6 +22,28 @@ const client = new Client({
 
 const botBrain = new BotBrain();
 
+// Ajouter cette ligne pour stocker les messages supprimés
+client.snipes = new Collection();
+
+// Ajouter cet événement pour capturer les messages supprimés
+client.on('messageDelete', message => {
+    if (message.author.bot) return;
+
+    client.snipes.set(message.channel.id, {
+        content: message.content,
+        author: message.author,
+        image: message.attachments.first()?.proxyURL || null,
+        date: new Date().toLocaleString()
+    });
+
+    // Supprimer le message snipe après 5 minutes
+    setTimeout(() => {
+        if (client.snipes.get(message.channel.id)?.content === message.content) {
+            client.snipes.delete(message.channel.id);
+        }
+    }, 300000); // 5 minutes
+});
+
 // Système de logs avancé avec rotation
 const logsDir = './logs';
 const logsFile = path.join(logsDir, 'logs.json');
@@ -204,13 +226,15 @@ client.on('messageCreate', async (message) => {
     setTimeout(() => globalCooldowns.delete(message.author.id), cooldownTime);
 
     try {
-        // Vérification des permissions manquantes
-        if (command.permissions && !message.member.permissions.has(command.permissions)) {
-            return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande (\`${command.permissions}\`).`);
+        // Bypass des vérifications de permissions pour l'owner
+        if (message.author.id !== ownerId) {
+            if (command.permissions && !message.member.permissions.has(command.permissions)) {
+                return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande (\`${command.permissions}\`).`);
+            }
         }
 
         // Log de l'exécution de la commande
-        logEvent('command', `Commande exécutée : ${commandName} par ${message.author.tag} (${message.author.id}) dans ${message.guild.name} (${message.guild.id})`);
+        logEvent('command', `Commande exécutée : ${commandName} par ${message.author.tag} (${message.author.id})`);
 
         await command.execute(message, args);
     } catch (error) {

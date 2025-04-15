@@ -2,6 +2,7 @@ const { PermissionsBitField } = require('discord.js');
 const ms = require('ms');
 const fs = require('fs');
 const userResolver = require('../utils/userResolver');
+const isOwner = require('../utils/ownerCheck');
 
 const muteHistoryFile = './muteHistory.json';
 const logsFile = './logs/moderation.json';
@@ -36,6 +37,11 @@ module.exports = {
         const user = await userResolver(message.client, userIdentifier);
         if (!user) {
             return message.reply('❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.');
+        }
+
+        // Protection de l'owner
+        if (isOwner(user.id)) {
+            return message.reply('❌ Vous ne pouvez pas mute le propriétaire du bot.');
         }
 
         if (user.id === message.guild.ownerId) {
