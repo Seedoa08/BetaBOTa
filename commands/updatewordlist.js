@@ -1,4 +1,5 @@
-const { generateWordlist } = require('../utils/wordlistGenerator');
+// Supprimez ou commentez les lignes qui utilisent `wordlistGenerator.js`
+// const { generateWordlist } = require('../utils/wordlistGenerator');
 const fs = require('fs');
 const wordlistFile = './wordlist.json';
 
