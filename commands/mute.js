@@ -54,6 +54,10 @@ module.exports = {
             return message.reply('❌ Vous ne pouvez pas mute cet utilisateur. Vérifiez vos permissions ou le rôle de l\'utilisateur.');
         }
 
+        if (member.communicationDisabledUntilTimestamp && member.communicationDisabledUntilTimestamp > Date.now()) {
+            return message.reply('❌ Cet utilisateur est déjà mute.');
+        }
+
         const durationMs = ms(duration);
         if (isNaN(durationMs)) {
             return message.reply('❌ Durée invalide! Exemple: `10m`, `1h`.');

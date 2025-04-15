@@ -51,6 +51,11 @@ module.exports = {
             return message.reply('❌ Vous ne pouvez pas bannir cet utilisateur. Vérifiez vos permissions ou le rôle de l\'utilisateur.');
         }
 
+        const isBanned = await message.guild.bans.fetch(user.id).catch(() => null);
+        if (isBanned) {
+            return message.reply('❌ Cet utilisateur est déjà banni.');
+        }
+
         try {
             const confirmationMessage = await message.reply(`⚠️ Êtes-vous sûr de vouloir bannir ${user.tag} ? Répondez par \`oui\` ou \`non\`.`);
             const filter = response => response.author.id === message.author.id && ['oui', 'non'].includes(response.content.toLowerCase());

@@ -13,25 +13,27 @@ module.exports = {
             "🎭 Gestion des sanctions": ["warnings", "clearwarns", "tempmute", "unmute"]
         };
 
-        const embeds = Object.entries(categories).map(([category, commands]) => {
-            return {
-                color: 0x0099ff,
-                title: `📜 Aide du bot - ${category}`,
-                description: 'Voici la liste des commandes disponibles :',
-                fields: commands.map(cmdName => {
-                    const cmd = message.client.commands.get(cmdName);
-                    return {
-                        name: `\`${prefix}${cmdName}\``,
-                        value: cmd ? cmd.description : 'Pas de description disponible'
-                    };
-                }),
-                footer: {
-                    text: `Demandé par ${message.author.tag}`,
-                    icon_url: message.author.displayAvatarURL({ dynamic: true })
-                },
-                timestamp: new Date()
-            };
-        });
+        const embeds = Object.entries(categories)
+            .filter(([_, commands]) => commands.length > 0) // Filtrer les catégories vides
+            .map(([category, commands]) => {
+                return {
+                    color: 0x0099ff,
+                    title: `📜 Aide du bot - ${category}`,
+                    description: 'Voici la liste des commandes disponibles :',
+                    fields: commands.map(cmdName => {
+                        const cmd = message.client.commands.get(cmdName);
+                        return {
+                            name: `\`${prefix}${cmdName}\``,
+                            value: cmd?.description || 'Pas de description disponible'
+                        };
+                    }),
+                    footer: {
+                        text: `Demandé par ${message.author.tag}`,
+                        icon_url: message.author.displayAvatarURL({ dynamic: true })
+                    },
+                    timestamp: new Date()
+                };
+            });
 
         try {
             for (const embed of embeds) {

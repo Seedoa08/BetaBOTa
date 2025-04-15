@@ -10,7 +10,7 @@ module.exports = {
         const user = message.mentions.users.first() || message.author;
         const member = message.guild.members.cache.get(user.id);
         if (!member) {
-            return message.reply('❌ Utilisateur introuvable dans le serveur.');
+            return message.reply('❌ Cet utilisateur n\'est pas dans le serveur.');
         }
 
         const roles = member ? member.roles.cache

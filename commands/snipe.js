@@ -1,4 +1,4 @@
-let lastDeletedMessage = null;
+let lastDeletedMessages = new Map(); // Utiliser une Map pour gérer les messages supprimés par salon
 
 module.exports = {
     name: 'snipe',
@@ -6,25 +6,27 @@ module.exports = {
     usage: '+snipe',
     permissions: 'Aucune',
     async execute(message) {
-        if (!lastDeletedMessage || lastDeletedMessage.channel.id !== message.channel.id) {
+        const deletedMessage = lastDeletedMessages.get(message.channel.id);
+
+        if (!deletedMessage) {
             return message.reply('❌ Aucun message supprimé récemment dans ce salon.');
         }
 
         const snipeEmbed = {
             color: 0xff9900,
             author: {
-                name: lastDeletedMessage.author.tag,
-                icon_url: lastDeletedMessage.author.displayAvatarURL({ dynamic: true })
+                name: deletedMessage.author.tag,
+                icon_url: deletedMessage.author.displayAvatarURL({ dynamic: true })
             },
-            description: lastDeletedMessage.content || '*Aucun contenu (peut-être un embed ou une image)*',
+            description: deletedMessage.content || '*Aucun contenu (peut-être un embed ou une image)*',
             footer: {
-                text: `Message supprimé dans #${lastDeletedMessage.channel.name}`
+                text: `Message supprimé dans #${deletedMessage.channel.name}`
             },
-            timestamp: lastDeletedMessage.createdAt
+            timestamp: deletedMessage.createdAt
         };
 
-        if (lastDeletedMessage.attachments.size > 0) {
-            snipeEmbed.image = { url: lastDeletedMessage.attachments.first().proxyURL };
+        if (deletedMessage.attachments.size > 0) {
+            snipeEmbed.image = { url: deletedMessage.attachments.first().proxyURL };
         }
 
         message.channel.send({ embeds: [snipeEmbed] });

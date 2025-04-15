@@ -33,8 +33,8 @@ module.exports = {
         }
 
         const durationMs = ms(duration);
-        if (isNaN(durationMs)) {
-            return message.reply('❌ Durée invalide! Exemple: `10m`, `1h`.');
+        if (!duration || isNaN(durationMs)) {
+            return message.reply('❌ Durée invalide ou manquante! Exemple: `10m`, `1h`.');
         }
 
         try {

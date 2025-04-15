@@ -2,7 +2,8 @@ const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { prefix } = require('./config/globals');
-const token = 'MTM0OTc4NTYwMzMxMDYxNjYwNw.G7cV1k.Rk-cICyfno2cpb2qiGbEWYZ2jtYg6zkViUU1kI'; // Token directement dans le code
+require('dotenv').config();
+const token = process.env.DISCORD_TOKEN; // Token sécurisé via variable d'environnement
 const { ownerId } = require('./config/owner');
 const { checkPermissions } = require('./utils/permissions');
 const ErrorHandler = require('./utils/errorHandler');
@@ -87,170 +88,32 @@ client.once('ready', async () => {
         });
 
         console.log('Bot de modération en ligne !');
-        logEvent('info', 'Le bot est en ligne et synchronisé.');
-
-        // Message de redémarrage
-        if (fs.existsSync('./lastRestart.json')) {
-            const lastRestartInfo = JSON.parse(fs.readFileSync('./lastRestart.json', 'utf8'));
-            if (lastRestartInfo?.channelId) {
-                const channel = client.channels.cache.get(lastRestartInfo.channelId);
-                if (channel) {
-                    await channel.send('✅ Redémarrage effectué avec succès ! Tous les fichiers sont synchronisés.');
-                }
-                fs.unlinkSync('./lastRestart.json');
+        if (!fs.existsSync(logsDir)) {
+            fs.mkdirSync(logsDir, { recursive: true });
+        }
+                logEvent('info', 'Le bot est en ligne et synchronisé');
+            } catch (error) {
+                console.error('Erreur lors de l\'initialisation du bot :', error);
+                logEvent('error', `Erreur lors de l'initialisation : ${error.message}`);
             }
-        }
-    } catch (error) {
-        console.error('Erreur lors de la synchronisation :', error);
-        logEvent('error', `Erreur de synchronisation : ${error.message}`);
-    }
-
-    client.errorHandler = new ErrorHandler(client);
-});
-
-// Initialiser le système de rappel de sanctions
-const sanctionReminder = new SanctionReminder(client);
-
-client.on('messageCreate', async (message) => {
-    if (!message.guild || message.author.bot || !message.content.startsWith(prefix)) return;
-
-    // Vérification anti-spam
-    const spamCheck = antiSpam.check(message);
-    if (spamCheck.shouldMute) {
-        const member = message.member;
-        if (member && member.moderatable) {
-            await member.timeout(600000, 'Spam détecté'); // Mute de 10 minutes
-            message.channel.send(`🛡️ ${member.user.tag} a été mute pour spam.`);
-        }
-    } else if (spamCheck.shouldWarn) {
-        message.channel.send(`⚠️ ${message.author}, merci de ne pas spammer.`);
-    }
-
-    // Traitement des commandes
-    if (message.content.startsWith(prefix)) {
-        const args = message.content.slice(prefix.length).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
-        const command = client.commands.get(commandName) || client.commands.find(cmd => cmd.aliases?.includes(commandName));
-
-        if (!command) return;
-
-        try {
-            await command.execute(message, args);
-        } catch (error) {
-            console.error(`Erreur lors de l'exécution de la commande "${commandName}" :`, error);
-            logEvent('error', `Erreur dans la commande "${commandName}" : ${error.message}`);
-            message.reply('❌ Une erreur est survenue lors de l\'exécution de cette commande.');
-        }
-    }
-});
-
-// Gestion des erreurs globales
-process.on('unhandledRejection', async (error) => {
-    console.error('Erreur non gérée :', error);
-    logEvent('error', `Erreur non gérée : ${error.message}`);
-});
-
-process.on('uncaughtException', (error) => {
-    console.error('Exception non gérée :', error);
-    logEvent('error', `Exception non gérée : ${error.message}`);
-});
-
-// Optimisation des événements
-client.on('guildMemberAdd', (member) => {
-    logEvent('info', `Nouveau membre : ${member.user.tag} a rejoint le serveur.`);
-});
-
-client.on('guildMemberRemove', (member) => {
-    logEvent('info', `Membre parti : ${member.user.tag} a quitté le serveur.`);
-});
-
-client.on('guildMemberUpdate', async (oldMember, newMember) => {
-    if (oldMember.communicationDisabledUntilTimestamp !== newMember.communicationDisabledUntilTimestamp) {
-        const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
-        logs.push({
-            action: 'mute',
-            user: { id: newMember.id, tag: newMember.user.tag },
-            moderator: null, // Discord ne fournit pas directement le modérateur ici
-            reason: 'Mute/Unmute détecté',
-            date: new Date().toISOString()
         });
-        fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
-    }
-});
-
-client.on('guildBanAdd', async (ban) => {
-    const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
-    logs.push({
-        action: 'ban',
-        user: { id: ban.user.id, tag: ban.user.tag },
-        moderator: null, // Discord ne fournit pas directement le modérateur ici
-        reason: 'Bannissement détecté',
-        date: new Date().toISOString()
-    });
-    fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
-
-    const audit = await ban.guild.fetchAuditLogs({
-        type: 'MEMBER_BAN_ADD',
-        limit: 1
-    });
-    const entry = audit.entries.first();
-    if (entry) {
-        modStats.addAction(entry.executor.id, 'bans');
-    }
-});
-
-let lastDeletedMessage = null;
-
-client.on('messageDelete', async (message) => {
-    if (!message.partial) {
-        lastDeletedMessage = message;
-    }
-    const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
-    logs.push({
-        action: 'messageDelete',
-        user: { id: message.author.id, tag: message.author.tag },
-        channel: { id: message.channel.id, name: message.channel.name },
-        reason: 'Message supprimé',
-        date: new Date().toISOString()
-    });
-    fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
-});
-
-client.on('voiceStateUpdate', async (oldState, newState) => {
-    const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
-    if (!oldState.channel && newState.channel) {
-        logs.push({
-            action: 'voiceJoin',
-            user: { id: newState.id, tag: newState.member.user.tag },
-            channel: { id: newState.channel.id, name: newState.channel.name },
-            date: new Date().toISOString()
+        
+        client.on('messageCreate', async (message) => {
+            if (!message.content.startsWith(prefix) || message.author.bot) return;
+        
+            const args = message.content.slice(prefix.length).trim().split(/ +/);
+            const commandName = args.shift().toLowerCase();
+        
+            const command = client.commands.get(commandName);
+            if (!command) return;
+        
+            try {
+                await command.execute(message, args);
+            } catch (error) {
+                console.error('Erreur lors de l\'exécution de la commande :', error);
+                logEvent('error', `Erreur lors de l'exécution de la commande ${commandName}: ${error.message}`);
+                message.reply('Une erreur est survenue lors de l\'exécution de cette commande.');
+            }
         });
-    } else if (oldState.channel && !newState.channel) {
-        logs.push({
-            action: 'voiceLeave',
-            user: { id: oldState.id, tag: oldState.member.user.tag },
-            channel: { id: oldState.channel.id, name: oldState.channel.name },
-            date: new Date().toISOString()
-        });
-    }
-    fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
-});
-
-client.on('guildMemberRoleAdd', async (member, role) => {
-    logEvent('info', `Rôle ajouté : ${role.name} à ${member.user.tag}`);
-});
-
-client.on('guildMemberRoleRemove', async (member, role) => {
-    logEvent('info', `Rôle retiré : ${role.name} de ${member.user.tag}`);
-});
-
-client.on('channelUpdate', async (oldChannel, newChannel) => {
-    if (oldChannel.permissionOverwrites !== newChannel.permissionOverwrites) {
-        logEvent('info', `Permissions modifiées dans le canal ${newChannel.name}`);
-    }
-});
-
-client.login(token).catch(error => {
-    console.error('Erreur lors de la connexion du bot :', error.message);
-    process.exit(1); // Quitte le processus si le token est invalide
-});
+        
+        client.login(token);
