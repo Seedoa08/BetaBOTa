@@ -33,27 +33,13 @@ module.exports = {
             };
         });
 
-        let currentPage = 0;
-
-        const helpMessage = await message.channel.send({ embeds: [embeds[currentPage]] });
-        await helpMessage.react('⬅️');
-        await helpMessage.react('➡️');
-
-        const filter = (reaction, user) => ['⬅️', '➡️'].includes(reaction.emoji.name) && user.id === message.author.id;
-        const collector = helpMessage.createReactionCollector({ filter, time: 60000 });
-
-        collector.on('collect', (reaction) => {
-            if (reaction.emoji.name === '⬅️') {
-                currentPage = currentPage > 0 ? currentPage - 1 : embeds.length - 1;
-            } else if (reaction.emoji.name === '➡️') {
-                currentPage = currentPage + 1 < embeds.length ? currentPage + 1 : 0;
+        try {
+            for (const embed of embeds) {
+                await message.channel.send({ embeds: [embed] });
             }
-            helpMessage.edit({ embeds: [embeds[currentPage]] });
-            reaction.users.remove(message.author.id).catch(console.error);
-        });
-
-        collector.on('end', () => {
-            helpMessage.reactions.removeAll().catch(console.error);
-        });
+        } catch (error) {
+            console.error('Erreur lors de l\'envoi des embeds d\'aide:', error);
+            message.reply('❌ Une erreur est survenue lors de l\'envoi des informations d\'aide.');
+        }
     }
 };
