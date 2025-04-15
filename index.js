@@ -2,8 +2,7 @@ const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { prefix } = require('./config/globals');
-require('dotenv').config();
-const token = process.env.DISCORD_TOKEN; // Token sécurisé via variable d'environnement
+const token = 'MTM0OTc4NTYwMzMxMDYxNjYwNw.G7cV1k.Rk-cICyfno2cpb2qiGbEWYZ2jtYg6zkViUU1kI'; // Token directement dans le code
 const { ownerId } = require('./config/owner');
 const { checkPermissions } = require('./utils/permissions');
 const ErrorHandler = require('./utils/errorHandler');
