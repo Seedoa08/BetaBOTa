@@ -9,6 +9,9 @@ module.exports = {
     async execute(message, args) {
         const user = message.mentions.users.first() || message.author;
         const member = message.guild.members.cache.get(user.id);
+        if (!member) {
+            return message.reply('❌ Utilisateur introuvable dans le serveur.');
+        }
 
         const roles = member ? member.roles.cache
             .filter(role => role.id !== message.guild.id) // Exclure le rôle @everyone

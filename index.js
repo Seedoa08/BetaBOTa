@@ -14,9 +14,7 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.DirectMessages
+        GatewayIntentBits.MessageContent
     ]
 });
 
@@ -113,8 +111,8 @@ client.once('ready', async () => {
 // Initialiser le système de rappel de sanctions
 const sanctionReminder = new SanctionReminder(client);
 
-client.on('messageCreate', async message => {
-    if (!isInitialized || message.author.bot) return;
+client.on('messageCreate', async (message) => {
+    if (!message.guild || message.author.bot || !message.content.startsWith(prefix)) return;
 
     // Vérification anti-spam
     const spamCheck = antiSpam.check(message);
@@ -129,51 +127,6 @@ client.on('messageCreate', async message => {
     }
 
     // Traitement des commandes
-    if (message.content.startsWith(prefix)) {
-        if (!message.guild || !message.member) return;
-
-        const args = message.content.slice(prefix.length).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
-        const command = client.commands.get(commandName);
-
-        if (!command) return;
-
-        try {
-            await command.execute(message, args);
-        } catch (error) {
-            console.error(`Erreur lors de l'exécution de la commande "${commandName}" :`, error);
-
-            // Envoi des logs en DM à l'owner
-            const owner = await client.users.fetch(ownerId);
-            if (owner) {
-                try {
-                    await owner.send(`❌ Une erreur est survenue lors de l'exécution de la commande "${commandName}" :\n\`\`\`${error.stack || error.message}\`\`\``);
-                } catch (dmError) {
-                    console.error('Impossible d\'envoyer un DM à l\'owner :', dmError);
-                }
-            }
-
-            // Réponse dans le canal
-            message.reply('❌ Une erreur est survenue lors de l\'exécution de cette commande.');
-        }
-    }
-});
-
-// Gestion des erreurs globales
-process.on('unhandledRejection', async (error) => {
-    console.error('Erreur non gérée :', error);
-    logEvent('error', `Erreur non gérée : ${error.message}`);
-});
-
-process.on('uncaughtException', (error) => {
-    console.error('Exception non gérée :', error);
-    logEvent('error', `Exception non gérée : ${error.message}`);
-});
-
-// Gestion des commandes avec alias
-client.on('messageCreate', async (message) => {
-    if (!isInitialized || message.author.bot) return;
-
     if (message.content.startsWith(prefix)) {
         const args = message.content.slice(prefix.length).trim().split(/ +/);
         const commandName = args.shift().toLowerCase();
@@ -191,6 +144,17 @@ client.on('messageCreate', async (message) => {
     }
 });
 
+// Gestion des erreurs globales
+process.on('unhandledRejection', async (error) => {
+    console.error('Erreur non gérée :', error);
+    logEvent('error', `Erreur non gérée : ${error.message}`);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Exception non gérée :', error);
+    logEvent('error', `Exception non gérée : ${error.message}`);
+});
+
 // Optimisation des événements
 client.on('guildMemberAdd', (member) => {
     logEvent('info', `Nouveau membre : ${member.user.tag} a rejoint le serveur.`);
@@ -198,11 +162,6 @@ client.on('guildMemberAdd', (member) => {
 
 client.on('guildMemberRemove', (member) => {
     logEvent('info', `Membre parti : ${member.user.tag} a quitté le serveur.`);
-});
-
-// Gestion des erreurs globales
-process.on('unhandledRejection', async (error) => {
-    console.error('Erreur non gérée :', error);
 });
 
 client.on('guildMemberUpdate', async (oldMember, newMember) => {

@@ -46,10 +46,7 @@ module.exports = {
         args = args.filter(arg => !arg.startsWith('--'));
 
         try {
-            let messages = await message.channel.messages.fetch({ 
-                limit: amount,
-                before: options.before
-            });
+            const messages = await message.channel.messages.fetch({ limit: Math.min(amount, 50) });
 
             if (options.bots) messages = messages.filter(msg => msg.author.bot);
             if (options.users) messages = messages.filter(msg => !msg.author.bot);

@@ -1,12 +1,29 @@
+const cooldowns = new Map();
+
 module.exports = {
     name: 'ping',
     description: 'Affiche la latence du bot et de l\'API Discord.',
     usage: '+ping',
     permissions: 'Aucune',
     async execute(message) {
+        const cooldownTime = 5000; // 5 secondes
+        const now = Date.now();
+
+        if (cooldowns.has(message.author.id)) {
+            const expirationTime = cooldowns.get(message.author.id) + cooldownTime;
+            if (now < expirationTime) {
+                const timeLeft = ((expirationTime - now) / 1000).toFixed(1);
+                return message.reply(`⏳ Veuillez attendre ${timeLeft} seconde(s) avant de réutiliser cette commande.`);
+            }
+        }
+
+        cooldowns.set(message.author.id, now);
+        setTimeout(() => cooldowns.delete(message.author.id), cooldownTime);
+
         try {
+            const start = Date.now();
             const sentMessage = await message.channel.send('🏓 Calcul de la latence...');
-            const botLatency = sentMessage.createdTimestamp - message.createdTimestamp;
+            const botLatency = Date.now() - start;
             const apiLatency = Math.round(message.client.ws.ping);
 
             const status = botLatency < 200 ? '🟢 Excellent' : botLatency < 400 ? '🟠 Moyen' : '🔴 Mauvais';
