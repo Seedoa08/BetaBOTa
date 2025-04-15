@@ -2,34 +2,49 @@ const { PermissionsBitField } = require('discord.js');
 
 module.exports = {
     name: 'purge',
-    description: 'Supprime les messages d\'un utilisateur spécifique dans ce salon.',
-    usage: '+purge @utilisateur [nombre]',
+    description: 'Supprime des messages selon des critères spécifiques',
+    usage: '+purge <type> [quantité]',
     permissions: 'ManageMessages',
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les messages.');
+            return message.reply('❌ Permission manquante: Gérer les messages');
         }
 
-        const user = message.mentions.users.first();
-        const amount = parseInt(args[1], 10) || 100;
+        const type = args[0]?.toLowerCase();
+        const amount = parseInt(args[1]) || 100;
 
-        if (!user) {
-            return message.reply('❌ Vous devez mentionner un utilisateur.');
+        if (amount > 100) return message.reply('❌ Maximum: 100 messages');
+
+        const messages = await message.channel.messages.fetch({ limit: 100 });
+        let filtered;
+
+        switch(type) {
+            case 'bots':
+                filtered = messages.filter(m => m.author.bot);
+                break;
+            case 'files':
+                filtered = messages.filter(m => m.attachments.size > 0);
+                break;
+            case 'links':
+                filtered = messages.filter(m => m.content.match(/https?:\/\/[^\s]+/));
+                break;
+            case 'embeds':
+                filtered = messages.filter(m => m.embeds.length > 0);
+                break;
+            default:
+                return message.reply('❌ Type invalide. Utilisez: bots, files, links, embeds');
         }
 
-        if (isNaN(amount) || amount <= 0 || amount > 100) {
-            return message.reply('❌ Veuillez spécifier un nombre valide entre 1 et 100.');
-        }
+        filtered = Array.from(filtered.values()).slice(0, amount);
 
         try {
-            const messages = await message.channel.messages.fetch({ limit: amount });
-            const userMessages = messages.filter(msg => msg.author.id === user.id);
-
-            await message.channel.bulkDelete(userMessages, true);
-            message.reply(`✅ ${userMessages.size} messages de ${user.tag} ont été supprimés.`);
+            const deleted = await message.channel.bulkDelete(filtered);
+            message.reply({
+                content: `✅ ${deleted.size} messages supprimés.`,
+                allowedMentions: { repliedUser: false }
+            }).then(msg => setTimeout(() => msg.delete(), 5000));
         } catch (error) {
-            console.error('Erreur lors de la suppression des messages :', error);
-            message.reply('❌ Une erreur est survenue lors de la suppression des messages.');
+            message.reply('❌ Erreur lors de la suppression');
         }
     }
 };

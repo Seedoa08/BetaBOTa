@@ -2,7 +2,7 @@ const { ownerId } = require('../config/owner');
 
 module.exports = {
     name: 'shutdown',
-    description: 'Arrête le bot proprement',
+    description: 'Arrête proprement le bot',
     usage: '+shutdown',
     permissions: 'OwnerOnly',
     async execute(message) {

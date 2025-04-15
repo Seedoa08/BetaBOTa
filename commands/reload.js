@@ -5,8 +5,12 @@ const path = require('path');
 module.exports = {
     name: 'reload',
     description: 'Recharge une commande ou toutes les commandes',
-    usage: '+reload [commande]',
+    usage: '+reload [commande/all]',
     permissions: 'OwnerOnly',
+    variables: [
+        { name: 'commande', description: 'Nom de la commande à recharger' },
+        { name: 'all', description: 'Recharge toutes les commandes' }
+    ],
     async execute(message, args) {
         if (message.author.id !== ownerId) {
             return message.reply('❌ Cette commande est réservée au propriétaire du bot.');
@@ -28,6 +32,33 @@ module.exports = {
             }
             
             return message.reply('✅ Toutes les commandes ont été rechargées !');
+        }
+
+        // Ajout d'une option de rechargement complet
+        if (args[0] === 'all') {
+            const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
+            const utilFiles = fs.readdirSync('./utils').filter(file => file.endsWith('.js'));
+
+            // Rechargement des événements
+            for (const file of eventFiles) {
+                try {
+                    delete require.cache[require.resolve(`../events/${file}`)];
+                } catch (error) {
+                    console.error(`Erreur lors du rechargement de l'événement ${file}:`, error);
+                }
+            }
+
+            // Rechargement des utilitaires
+            for (const file of utilFiles) {
+                try {
+                    delete require.cache[require.resolve(`../utils/${file}`)];
+                } catch (error) {
+                    console.error(`Erreur lors du rechargement de l'utilitaire ${file}:`, error);
+                }
+            }
+
+            message.reply('✅ Tous les modules ont été rechargés !');
+            return;
         }
 
         const commandName = args[0].toLowerCase();

@@ -4,40 +4,33 @@ const logsFile = './logs/moderation.json';
 
 module.exports = {
     name: 'modstats',
-    description: 'Affiche les statistiques des actions de modération.',
-    usage: '+modstats',
+    description: 'Affiche les statistiques de modération',
+    usage: '+modstats [@modérateur]',
     permissions: 'ManageMessages',
-    async execute(message) {
+    async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
             return message.reply('❌ Vous n\'avez pas la permission de voir les statistiques des modérateurs.');
         }
 
-        const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
-        const stats = {};
-
-        logs.forEach(log => {
-            if (log.moderator) {
-                if (!stats[log.moderator.id]) {
-                    stats[log.moderator.id] = { bans: 0, mutes: 0, warns: 0, kicks: 0 };
-                }
-                stats[log.moderator.id][log.action] = (stats[log.moderator.id][log.action] || 0) + 1;
-            }
-        });
-
-        const statsList = Object.entries(stats)
-            .map(([modId, actions]) => {
-                const mod = message.guild.members.cache.get(modId);
-                return `**${mod?.user.tag || 'Inconnu'}**\nBans: ${actions.bans || 0}, Mutes: ${actions.mutes || 0}, Warns: ${actions.warns || 0}, Kicks: ${actions.kicks || 0}`;
-            })
-            .join('\n') || 'Aucune action modératrice enregistrée.';
+        const mod = message.mentions.users.first() || message.author;
+        const stats = await this.getModStats(mod.id);
 
         const embed = {
-            color: 0x0099ff,
-            title: '📊 Statistiques des modérateurs',
-            description: statsList,
+            color: 0x4caf50,
+            author: {
+                name: `Statistiques de modération de ${mod.tag}`,
+                icon_url: mod.displayAvatarURL({ dynamic: true })
+            },
+            fields: [
+                { name: 'Messages supprimés', value: stats.deleted.toString(), inline: true },
+                { name: 'Avertissements', value: stats.warns.toString(), inline: true },
+                { name: 'Mutes', value: stats.mutes.toString(), inline: true },
+                { name: 'Kicks', value: stats.kicks.toString(), inline: true },
+                { name: 'Bans', value: stats.bans.toString(), inline: true },
+                { name: 'Total', value: stats.total.toString(), inline: true }
+            ],
             footer: {
-                text: `Demandé par ${message.author.tag}`,
-                icon_url: message.author.displayAvatarURL({ dynamic: true })
+                text: 'Statistiques depuis le début'
             },
             timestamp: new Date()
         };

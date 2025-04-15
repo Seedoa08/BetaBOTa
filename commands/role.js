@@ -2,45 +2,60 @@ const { PermissionsBitField } = require('discord.js');
 
 module.exports = {
     name: 'role',
-    description: 'Attribue ou retire un rôle à un utilisateur.',
-    usage: '+role @utilisateur @role',
+    description: 'Gère les rôles des utilisateurs',
+    usage: '+role <add/remove/info> @utilisateur @role',
     permissions: 'ManageRoles',
-    variables: [
-        { name: '@utilisateur', description: 'Mention de l\'utilisateur.' },
-        { name: '@role', description: 'Mention du rôle à attribuer ou retirer.' }
-    ],
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les rôles.');
+            return message.reply('❌ Permission manquante: Gérer les rôles');
         }
 
-        const user = message.mentions.users.first();
+        const action = args[0]?.toLowerCase();
+        const member = message.mentions.members.first();
         const role = message.mentions.roles.first();
 
-        if (!user || !role) {
-            return message.reply('❌ Vous devez mentionner un utilisateur et un rôle.');
+        if (!['add', 'remove', 'info'].includes(action) || !member) {
+            return message.reply('❌ Usage: `+role <add/remove/info> @utilisateur @role`');
         }
 
-        const member = message.guild.members.cache.get(user.id);
-        if (!member) {
-            return message.reply('❌ Cet utilisateur n\'est pas dans le serveur.');
-        }
+        switch(action) {
+            case 'add':
+                if (!role) return message.reply('❌ Mentionnez un rôle à ajouter');
+                try {
+                    await member.roles.add(role);
+                    message.reply(`✅ Rôle ${role.name} ajouté à ${member.user.tag}`);
+                } catch (error) {
+                    message.reply('❌ Impossible d\'ajouter ce rôle');
+                }
+                break;
 
-        if (role.position >= message.guild.members.me.roles.highest.position) {
-            return message.reply('❌ Je ne peux pas gérer ce rôle car il est supérieur ou égal à mon rôle le plus élevé.');
-        }
+            case 'remove':
+                if (!role) return message.reply('❌ Mentionnez un rôle à retirer');
+                try {
+                    await member.roles.remove(role);
+                    message.reply(`✅ Rôle ${role.name} retiré de ${member.user.tag}`);
+                } catch (error) {
+                    message.reply('❌ Impossible de retirer ce rôle');
+                }
+                break;
 
-        try {
-            if (member.roles.cache.has(role.id)) {
-                await member.roles.remove(role);
-                message.reply(`✅ Le rôle ${role.name} a été retiré à ${user.tag}.`);
-            } else {
-                await member.roles.add(role);
-                message.reply(`✅ Le rôle ${role.name} a été attribué à ${user.tag}.`);
-            }
-        } catch (error) {
-            console.error('Erreur lors de la gestion du rôle:', error);
-            message.reply('❌ Une erreur est survenue lors de la gestion du rôle.');
+            case 'info':
+                const roles = member.roles.cache
+                    .sort((a, b) => b.position - a.position)
+                    .map(r => r.name)
+                    .join(', ');
+                
+                const embed = {
+                    color: member.displayColor || 0x0099ff,
+                    title: `Rôles de ${member.user.tag}`,
+                    description: roles || 'Aucun rôle',
+                    fields: [
+                        { name: 'Nombre de rôles', value: member.roles.cache.size.toString(), inline: true },
+                        { name: 'Rôle le plus haut', value: member.roles.highest.name, inline: true }
+                    ]
+                };
+                message.reply({ embeds: [embed] });
+                break;
         }
     }
 };
