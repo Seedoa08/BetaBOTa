@@ -1,4 +1,3 @@
-require('dotenv').config(); // Charger les variables d'environnement depuis .env
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
