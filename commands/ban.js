@@ -1,18 +1,20 @@
 const { PermissionsBitField } = require('discord.js');
-const { createModEmbed } = require('../utils/embeds');
-const theme = require('../config/theme');
+const fs = require('fs');
+const path = require('path');
 const userResolver = require('../utils/userResolver');
+
+const logsFile = './logs/moderation.json';
 
 module.exports = {
     name: 'ban',
     description: 'Bannit un utilisateur du serveur.',
-    usage: '+ban @utilisateur/ID [raison]',
+    usage: '+ban @utilisateur/ID [raison] [--silent] [--del [jours]]',
     permissions: 'BanMembers',
     variables: [
         { name: '@utilisateur', description: 'Mention de l\'utilisateur à bannir.' },
         { name: '[raison]', description: 'Raison du bannissement (facultatif).' },
-        { name: '--silent', description: 'Bannir silencieusement sans message dans le salon' },
-        { name: '--del [jours]', description: 'Supprimer les messages des X derniers jours (1-7)' }
+        { name: '--silent', description: 'Bannir silencieusement sans message dans le salon.' },
+        { name: '--del [jours]', description: 'Supprimer les messages des X derniers jours (1-7).' }
     ],
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
@@ -27,7 +29,6 @@ module.exports = {
         const delDays = args.find(arg => arg.startsWith('--del'));
         const deleteMessageDays = delDays ? Math.min(7, Math.max(0, parseInt(delDays.split(' ')[1]) || 0)) : 0;
 
-        // Remove flags from args
         args = args.filter(arg => !arg.startsWith('--'));
 
         const userIdentifier = args[0];
@@ -51,7 +52,15 @@ module.exports = {
         }
 
         try {
-            await member.ban({ 
+            const confirmationMessage = await message.reply(`⚠️ Êtes-vous sûr de vouloir bannir ${user.tag} ? Répondez par \`oui\` ou \`non\`.`);
+            const filter = response => response.author.id === message.author.id && ['oui', 'non'].includes(response.content.toLowerCase());
+            const collected = await message.channel.awaitMessages({ filter, max: 1, time: 15000 });
+
+            if (!collected.size || collected.first().content.toLowerCase() === 'non') {
+                return message.reply('❌ Bannissement annulé.');
+            }
+
+            await member.ban({
                 reason,
                 deleteMessageDays
             });
@@ -71,8 +80,19 @@ module.exports = {
                 };
                 await message.channel.send({ embeds: [banEmbed] });
             }
+
+            // Enregistrer dans les logs
+            const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
+            logs.push({
+                action: 'ban',
+                user: { id: user.id, tag: user.tag },
+                moderator: { id: message.author.id, tag: message.author.tag },
+                reason,
+                date: new Date().toISOString()
+            });
+            fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
         } catch (error) {
-            console.error('Erreur lors du bannissement:', error); // Journalisation détaillée
+            console.error('Erreur lors du bannissement:', error);
             message.reply('❌ Une erreur est survenue lors du bannissement.');
         }
     }

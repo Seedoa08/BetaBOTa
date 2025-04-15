@@ -1,17 +1,29 @@
 const { PermissionsBitField } = require('discord.js');
 const fs = require('fs');
+const warningsFile = './warnings.json';
 
 module.exports = {
     name: 'modstats',
-    description: 'Affiche les statistiques de modération du serveur.',
+    description: 'Affiche les statistiques des actions modératrices.',
+    usage: '+modstats',
+    permissions: 'ManageMessages',
     async execute(message) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ViewAuditLog)) {
             return message.reply('❌ Vous n\'avez pas la permission de voir les statistiques de modération.');
         }
 
         try {
-            const warnings = fs.existsSync('./warnings.json') ? JSON.parse(fs.readFileSync('./warnings.json', 'utf8')) : {};
+            const warnings = fs.existsSync(warningsFile) ? JSON.parse(fs.readFileSync(warningsFile, 'utf8')) : {};
             const muteHistory = fs.existsSync('./muteHistory.json') ? JSON.parse(fs.readFileSync('./muteHistory.json', 'utf8')) : {};
+
+            const modStats = {};
+            for (const userId in warnings) {
+                warnings[userId].forEach(warn => {
+                    const modId = warn.moderator;
+                    if (!modStats[modId]) modStats[modId] = 0;
+                    modStats[modId]++;
+                });
+            }
 
             const stats = {
                 totalWarnings: Object.values(warnings).reduce((acc, arr) => acc + arr.length, 0),
@@ -20,6 +32,10 @@ module.exports = {
                     .sort((a, b) => b[1].length - a[1].length)
                     .slice(0, 5)
             };
+
+            const modStatsDescription = Object.entries(modStats)
+                .map(([modId, count]) => `<@${modId}>: ${count} actions`)
+                .join('\n') || 'Aucune action modératrice enregistrée.';
 
             const statsEmbed = {
                 color: 0xff0000,
@@ -32,9 +48,10 @@ module.exports = {
                              stats.mostWarnedUsers.map(([id, warns], index) => 
                                 `${index + 1}. <@${id}> : ${warns.length} avertissement(s)`).join('\n') : 
                              'Aucun avertissement enregistré' 
-                    }
+                    },
+                    { name: 'Statistiques des modérateurs', value: modStatsDescription }
                 ],
-                footer: { text: 'Statistiques mises à jour' },
+                footer: { text: `Demandé par ${message.author.tag}`, icon_url: message.author.displayAvatarURL({ dynamic: true }) },
                 timestamp: new Date()
             };
 

@@ -4,6 +4,7 @@ const fs = require('fs');
 const userResolver = require('../utils/userResolver');
 
 const muteHistoryFile = './muteHistory.json';
+const logsFile = './logs/moderation.json';
 let muteHistory = {};
 
 if (fs.existsSync(muteHistoryFile)) {
@@ -107,6 +108,18 @@ module.exports = {
                 };
                 message.channel.send({ embeds: [muteEmbed] });
             }
+
+            // Enregistrer dans les logs
+            const logs = fs.existsSync(logsFile) ? JSON.parse(fs.readFileSync(logsFile, 'utf8')) : [];
+            logs.push({
+                action: 'mute',
+                user: { id: user.id, tag: user.tag },
+                moderator: { id: message.author.id, tag: message.author.tag },
+                reason,
+                duration: ms(finalDuration, { long: true }),
+                date: new Date().toISOString()
+            });
+            fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
         } catch (error) {
             console.error('Erreur lors du mute:', error);
             message.reply('❌ Une erreur est survenue lors du mute.');

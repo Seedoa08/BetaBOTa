@@ -1,20 +1,34 @@
 module.exports = {
     name: 'audit',
-    description: 'Affiche les actions récentes dans le serveur.',
-    async execute(interaction) {
-        const auditLogs = await interaction.guild.fetchAuditLogs({ limit: 10 });
-        const entries = auditLogs.entries.map(entry => {
-            const target = entry.target ? `${entry.target.tag || entry.target.id}` : 'Inconnu';
-            return `**Action**: ${entry.action}\n**Utilisateur**: ${entry.executor.tag}\n**Cible**: ${target}\n**Date**: <t:${Math.floor(entry.createdTimestamp / 1000)}:F>`;
-        });
+    description: 'Affiche les logs récents des actions modératrices.',
+    usage: '+audit',
+    permissions: 'ViewAuditLog',
+    async execute(message) {
+        if (!message.member.permissions.has('VIEW_AUDIT_LOG')) {
+            return message.reply('❌ Vous n\'avez pas la permission de voir les logs d\'audit.');
+        }
 
-        const auditEmbed = {
-            color: 0x0099ff,
-            title: '📋 Logs d\'audit récents',
-            description: entries.join('\n\n') || 'Aucune action récente.',
-            timestamp: new Date()
-        };
+        try {
+            const auditLogs = await message.guild.fetchAuditLogs({ limit: 10 });
+            const entries = auditLogs.entries.map(entry => {
+                return `**Action:** ${entry.action}\n**Utilisateur:** ${entry.executor.tag}\n**Cible:** ${entry.target?.tag || 'N/A'}\n**Date:** <t:${Math.floor(entry.createdTimestamp / 1000)}:F>`;
+            });
 
-        interaction.reply({ embeds: [auditEmbed] });
+            const embed = {
+                color: 0x0099ff,
+                title: '📋 Logs récents',
+                description: entries.join('\n\n') || 'Aucun log récent.',
+                footer: {
+                    text: `Demandé par ${message.author.tag}`,
+                    icon_url: message.author.displayAvatarURL({ dynamic: true })
+                },
+                timestamp: new Date()
+            };
+
+            message.channel.send({ embeds: [embed] });
+        } catch (error) {
+            console.error('Erreur lors de la récupération des logs d\'audit:', error);
+            message.reply('❌ Une erreur est survenue lors de la récupération des logs d\'audit.');
+        }
     }
 };

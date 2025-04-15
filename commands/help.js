@@ -6,11 +6,10 @@ module.exports = {
     usage: '+help [catégorie]',
     permissions: 'Aucune',
     async execute(message) {
-        // Organiser les commandes par catégories
         const categories = {
-            "🛡️ Modération": ["ban", "kick", "mute", "warn", "clear", "lock", "unlock"],
-            "⚙️ Configuration": ["serverinfo", "userinfo", "owneronly", "raid", "antiraid"],
-            "📊 Utilitaires": ["ping", "help", "info", "diagnostic"],
+            "🛡️ Modération": ["ban", "kick", "mute", "warn", "clear", "lock", "unlock", "nuke", "slowmode"],
+            "⚙️ Configuration": ["serverinfo", "userinfo", "owneronly", "role"],
+            "📊 Utilitaires": ["ping", "help", "info", "restart"],
             "🎭 Gestion des sanctions": ["warnings", "clearwarns", "tempmute", "unmute"]
         };
 

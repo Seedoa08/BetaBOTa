@@ -2,30 +2,28 @@ const { PermissionsBitField } = require('discord.js');
 
 module.exports = {
     name: 'slowmode',
-    description: 'Configure le mode lent du salon.',
-    usage: '+slowmode <durée/off>',
+    description: 'Configure le mode lent sur un canal.',
+    usage: '+slowmode [durée en secondes]',
     permissions: 'ManageChannels',
     variables: [
-        { name: 'durée', description: 'Durée en secondes (5s à 6h) ou "off" pour désactiver' }
+        { name: '[durée]', description: 'Durée du mode lent en secondes (0 pour désactiver).' }
     ],
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les salons.');
+            return message.reply('❌ Vous n\'avez pas la permission de gérer les canaux.');
         }
 
-        const duration = args[0]?.toLowerCase();
-
-        if (duration === 'off') {
-            await message.channel.setRateLimitPerUser(0);
-            return message.reply('✅ Mode lent désactivé.');
+        const duration = parseInt(args[0], 10);
+        if (isNaN(duration) || duration < 0 || duration > 21600) {
+            return message.reply('❌ Veuillez spécifier une durée valide entre 0 et 21600 secondes.');
         }
 
-        const seconds = parseInt(duration);
-        if (isNaN(seconds) || seconds < 5 || seconds > 21600) {
-            return message.reply('❌ La durée doit être entre 5 secondes et 6 heures.');
+        try {
+            await message.channel.setRateLimitPerUser(duration);
+            message.reply(`✅ Le mode lent a été configuré sur ${duration} seconde(s).`);
+        } catch (error) {
+            console.error('Erreur lors de la configuration du mode lent:', error);
+            message.reply('❌ Une erreur est survenue lors de la configuration du mode lent.');
         }
-
-        await message.channel.setRateLimitPerUser(seconds);
-        message.reply(`✅ Mode lent configuré à ${seconds} secondes.`);
     }
 };

@@ -26,6 +26,16 @@ module.exports = {
             return message.reply('❌ Veuillez spécifier un nombre valide entre 1 et 100.');
         }
 
+        if (amount > 50) {
+            const confirmationMessage = await message.reply(`⚠️ Vous êtes sur le point de supprimer ${amount} messages. Répondez par \`oui\` ou \`non\`.`);
+            const filter = response => response.author.id === message.author.id && ['oui', 'non'].includes(response.content.toLowerCase());
+            const collected = await message.channel.awaitMessages({ filter, max: 1, time: 15000 });
+
+            if (!collected.size || collected.first().content.toLowerCase() === 'non') {
+                return message.reply('❌ Suppression annulée.');
+            }
+        }
+
         const options = {
             bots: args.includes('--bots'),
             users: args.includes('--users'),

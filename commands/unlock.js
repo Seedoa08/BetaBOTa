@@ -24,7 +24,11 @@ module.exports = {
 
         try {
             await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { SendMessages: true });
-            message.reply('✅ Le canal a été déverrouillé.');
+            const unlockEmbed = {
+                color: 0x00ff00,
+                description: '🔓 Le canal a été déverrouillé avec succès.'
+            };
+            message.channel.send({ embeds: [unlockEmbed] });
         } catch (error) {
             console.error('Erreur lors du déverrouillage du canal:', error);
             message.reply('❌ Une erreur est survenue lors du déverrouillage du canal.');

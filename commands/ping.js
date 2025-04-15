@@ -10,12 +10,17 @@ module.exports = {
             const apiLatency = Math.round(message.client.ws.ping);
 
             const pingEmbed = {
-                color: 0x0099ff,
+                color: botLatency < 200 ? 0x00ff00 : 0xff9900,
                 title: '🏓 Pong!',
                 fields: [
                     { name: 'Latence du bot', value: `${botLatency}ms`, inline: true },
-                    { name: 'Latence de l\'API', value: `${apiLatency}ms`, inline: true }
+                    { name: 'Latence de l\'API', value: `${apiLatency}ms`, inline: true },
+                    { name: 'Statut', value: botLatency < 200 ? '🟢 Excellent' : '🟠 Moyen', inline: true }
                 ],
+                footer: {
+                    text: `Demandé par ${message.author.tag}`,
+                    icon_url: message.author.displayAvatarURL({ dynamic: true })
+                },
                 timestamp: new Date()
             };
 

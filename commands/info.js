@@ -5,10 +5,9 @@ module.exports = {
     permissions: 'Aucune',
     async execute(message, args) {
         const commandName = args[0]?.toLowerCase();
-        const command = message.client.commands.get(commandName);
+        const command = message.client.commands.get(commandName) || message.client.commands.find(cmd => cmd.aliases?.includes(commandName));
 
         if (!commandName) {
-            // Affiche des informations générales sur le bot
             const generalInfoEmbed = {
                 color: 0x00ff00,
                 title: 'ℹ️ Informations sur le bot',
@@ -31,14 +30,14 @@ module.exports = {
             return message.reply(`❌ La commande \`${commandName}\` n'existe pas.`);
         }
 
-        // Affiche des informations spécifiques à une commande
         const commandInfoEmbed = {
             color: 0x0099ff,
             title: `ℹ️ Informations sur la commande \`${command.name}\``,
             fields: [
                 { name: 'Description', value: command.description || 'Aucune description disponible.' },
                 { name: 'Usage', value: command.usage || 'Non spécifié.' },
-                { name: 'Permissions nécessaires', value: command.permissions || 'Aucune' }
+                { name: 'Permissions nécessaires', value: command.permissions || 'Aucune' },
+                { name: 'Alias', value: command.aliases?.join(', ') || 'Aucun' }
             ],
             footer: {
                 text: `Demandé par ${message.author.tag}`,
@@ -47,7 +46,6 @@ module.exports = {
             timestamp: new Date()
         };
 
-        // Ajout des variables ou options spécifiques si elles existent
         if (command.variables) {
             commandInfoEmbed.fields.push({
                 name: 'Variables/Options',

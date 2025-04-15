@@ -3,35 +3,21 @@ const fs = require('fs');
 
 module.exports = {
     name: 'restart',
-    description: 'Redémarre le bot en synchronisant les fichiers.',
+    description: 'Redémarre le bot.',
     usage: '+restart',
     permissions: 'OwnerOnly',
     async execute(message) {
-        const ownerId = '1061373376767201360';
-
+        const ownerId = '1061373376767201360'; // Remplacez par votre ID
         if (message.author.id !== ownerId) {
             return message.reply('❌ Cette commande est réservée à l\'owner du bot.');
         }
 
         try {
-            // Sauvegarde des informations de redémarrage
-            const restartInfo = {
-                channelId: message.channel.id,
-                timestamp: Date.now()
-            };
-            fs.writeFileSync('./lastRestart.json', JSON.stringify(restartInfo, null, 4));
-
-            await message.reply('🔄 Redémarrage du bot en cours... (Synchronisation des fichiers)');
-            
-            exec('pm2 restart bot', (error, stdout, stderr) => {
-                if (error) {
-                    console.error('Erreur lors du redémarrage:', error);
-                    message.channel.send('❌ Une erreur est survenue lors du redémarrage.');
-                }
-            });
+            await message.reply('🔄 Redémarrage en cours...');
+            process.exit(0); // Quitte le processus pour permettre un redémarrage
         } catch (error) {
-            console.error('Erreur dans la commande restart:', error);
-            message.reply('❌ Une erreur est survenue lors de l\'exécution de la commande de redémarrage.');
+            console.error('Erreur lors du redémarrage:', error);
+            message.reply('❌ Une erreur est survenue lors du redémarrage.');
         }
     }
 };
