@@ -4,7 +4,7 @@ module.exports = {
     usage: '+audit',
     permissions: 'ViewAuditLog',
     async execute(message) {
-        if (!message.member.permissions.has('VIEW_AUDIT_LOG')) {
+        if (!message.member.permissions.has('ViewAuditLog')) {
             return message.reply('❌ Vous n\'avez pas la permission de voir les logs d\'audit.');
         }
 

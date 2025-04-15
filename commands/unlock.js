@@ -23,7 +23,18 @@ module.exports = {
         }
 
         try {
+            // Vérifiez si le canal est déjà déverrouillé pour tous les rôles
+            const isFullyUnlocked = channel.permissionOverwrites.cache.every(overwrite =>
+                !overwrite.deny.has(PermissionsBitField.Flags.SendMessages)
+            );
+
+            if (isFullyUnlocked) {
+                return message.reply('❌ Ce canal est déjà complètement déverrouillé.');
+            }
+
+            // Appliquez les permissions pour déverrouiller le canal
             await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { SendMessages: true });
+
             const unlockEmbed = {
                 color: 0x00ff00,
                 description: '🔓 Le canal a été déverrouillé avec succès.'

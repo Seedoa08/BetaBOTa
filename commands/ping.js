@@ -9,13 +9,15 @@ module.exports = {
             const botLatency = sentMessage.createdTimestamp - message.createdTimestamp;
             const apiLatency = Math.round(message.client.ws.ping);
 
+            const status = botLatency < 200 ? '🟢 Excellent' : botLatency < 400 ? '🟠 Moyen' : '🔴 Mauvais';
+
             const pingEmbed = {
-                color: botLatency < 200 ? 0x00ff00 : 0xff9900,
+                color: botLatency < 200 ? 0x00ff00 : botLatency < 400 ? 0xff9900 : 0xff0000,
                 title: '🏓 Pong!',
                 fields: [
                     { name: 'Latence du bot', value: `${botLatency}ms`, inline: true },
                     { name: 'Latence de l\'API', value: `${apiLatency}ms`, inline: true },
-                    { name: 'Statut', value: botLatency < 200 ? '🟢 Excellent' : '🟠 Moyen', inline: true }
+                    { name: 'Statut', value: status, inline: true }
                 ],
                 footer: {
                     text: `Demandé par ${message.author.tag}`,

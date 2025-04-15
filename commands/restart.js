@@ -16,7 +16,7 @@ module.exports = {
             await message.reply('🔄 Redémarrage en cours...');
             process.exit(0); // Quitte le processus pour permettre un redémarrage
         } catch (error) {
-            console.error('Erreur lors du redémarrage:', error);
+            console.error('Erreur lors du redémarrage :', error);
             message.reply('❌ Une erreur est survenue lors du redémarrage.');
         }
     }

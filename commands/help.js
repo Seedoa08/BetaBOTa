@@ -36,6 +36,7 @@ module.exports = {
         try {
             for (const embed of embeds) {
                 await message.channel.send({ embeds: [embed] });
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Éviter le rate limiting
             }
         } catch (error) {
             console.error('Erreur lors de l\'envoi des embeds d\'aide:', error);

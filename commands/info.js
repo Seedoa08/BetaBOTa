@@ -53,6 +53,11 @@ module.exports = {
             });
         }
 
-        message.channel.send({ embeds: [commandInfoEmbed] });
+        try {
+            await message.channel.send({ embeds: [commandInfoEmbed] });
+        } catch (error) {
+            console.error('Erreur dans la commande info:', error);
+            message.reply('❌ Une erreur est survenue lors de l\'envoi des informations.');
+        }
     }
 };

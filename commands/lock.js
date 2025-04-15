@@ -28,6 +28,16 @@ module.exports = {
         }
 
         try {
+            // Vérifiez si d'autres permissions peuvent contourner le verrouillage
+            const conflictingPermissions = channel.permissionOverwrites.cache.some(overwrite =>
+                overwrite.allow.has(PermissionsBitField.Flags.SendMessages) &&
+                overwrite.id !== message.guild.roles.everyone.id
+            );
+
+            if (conflictingPermissions) {
+                return message.reply('⚠️ Attention : Certains rôles ou utilisateurs ont des permissions qui contournent ce verrouillage.');
+            }
+
             // Appliquez les permissions pour verrouiller le canal
             await channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false });
 

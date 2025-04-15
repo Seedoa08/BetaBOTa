@@ -162,6 +162,47 @@ client.on('messageCreate', async message => {
 // Gestion des erreurs globales
 process.on('unhandledRejection', async (error) => {
     console.error('Erreur non gérée :', error);
+    logEvent('error', `Erreur non gérée : ${error.message}`);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Exception non gérée :', error);
+    logEvent('error', `Exception non gérée : ${error.message}`);
+});
+
+// Gestion des commandes avec alias
+client.on('messageCreate', async (message) => {
+    if (!isInitialized || message.author.bot) return;
+
+    if (message.content.startsWith(prefix)) {
+        const args = message.content.slice(prefix.length).trim().split(/ +/);
+        const commandName = args.shift().toLowerCase();
+        const command = client.commands.get(commandName) || client.commands.find(cmd => cmd.aliases?.includes(commandName));
+
+        if (!command) return;
+
+        try {
+            await command.execute(message, args);
+        } catch (error) {
+            console.error(`Erreur lors de l'exécution de la commande "${commandName}" :`, error);
+            logEvent('error', `Erreur dans la commande "${commandName}" : ${error.message}`);
+            message.reply('❌ Une erreur est survenue lors de l\'exécution de cette commande.');
+        }
+    }
+});
+
+// Optimisation des événements
+client.on('guildMemberAdd', (member) => {
+    logEvent('info', `Nouveau membre : ${member.user.tag} a rejoint le serveur.`);
+});
+
+client.on('guildMemberRemove', (member) => {
+    logEvent('info', `Membre parti : ${member.user.tag} a quitté le serveur.`);
+});
+
+// Gestion des erreurs globales
+process.on('unhandledRejection', async (error) => {
+    console.error('Erreur non gérée :', error);
 });
 
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
@@ -234,6 +275,20 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         });
     }
     fs.writeFileSync(logsFile, JSON.stringify(logs, null, 4));
+});
+
+client.on('guildMemberRoleAdd', async (member, role) => {
+    logEvent('info', `Rôle ajouté : ${role.name} à ${member.user.tag}`);
+});
+
+client.on('guildMemberRoleRemove', async (member, role) => {
+    logEvent('info', `Rôle retiré : ${role.name} de ${member.user.tag}`);
+});
+
+client.on('channelUpdate', async (oldChannel, newChannel) => {
+    if (oldChannel.permissionOverwrites !== newChannel.permissionOverwrites) {
+        logEvent('info', `Permissions modifiées dans le canal ${newChannel.name}`);
+    }
 });
 
 client.login(token).catch(error => {
