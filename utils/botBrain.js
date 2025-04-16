@@ -36,6 +36,16 @@ class BotBrain {
         this.spamPatterns = new Map();
         this.userBehavior = new Map();
         this.messagePatterns = new Map();
+
+        // Système d'IA avancée
+        this.decisionPatterns = new Map();
+        this.actionHistory = new Map();
+        this.serverContexts = new Map();
+        this.adaptiveThresholds = {
+            spam: 0.7,
+            toxicity: 0.6,
+            risk: 0.8
+        };
     }
 
     loadData(filePath) {
@@ -138,33 +148,22 @@ class BotBrain {
     }
 
     async autoModerate(message) {
-        // Protection de l'owner
-        if (isOwner(message.author.id)) {
-            return;
+        const context = {
+            message,
+            behavior: await this.analyzeUserBehavior(message),
+            patterns: this.detectPatterns(message.content)
+        };
+
+        const decision = await this.makeDecision(context);
+
+        if (decision.action === 'automod') {
+            const actionTaken = await this.executeAutoModAction(message, decision);
+            this.logDecision(decision, actionTaken);
+            this.updateServerContext(message.guild.id, decision);
         }
 
-        const content = message.content.toLowerCase();
-        const userId = message.author.id;
-        const guildId = message.guild.id;
-
-        // Analyse comportementale
-        this.updateUserBehavior(userId, message);
-        
-        // Détection de patterns suspects
-        const patterns = this.detectPatterns(content);
-        
-        // Score de risque
-        const riskScore = this.calculateRiskScore(message);
-
-        // Actions automatiques basées sur le score
-        if (riskScore > 80) {
-            await this.handleHighRisk(message);
-        } else if (riskScore > 50) {
-            await this.handleMediumRisk(message);
-        }
-
-        // Apprentissage du pattern
-        this.learnPattern(content, riskScore);
+        // Ajuster les seuils en fonction des résultats
+        this.adaptThresholds(decision);
     }
 
     updateUserBehavior(userId, message) {
@@ -528,6 +527,91 @@ class BotBrain {
         } catch (error) {
             console.error('Erreur lors de l\'envoi de l\'avertissement:', error);
         }
+    }
+
+    async makeDecision(context) {
+        const { message, behavior, patterns } = context;
+        const serverContext = this.getServerContext(message.guild.id);
+        
+        // Analyse du contexte global du serveur
+        const serverState = {
+            activityLevel: serverContext.messageRate,
+            recentIncidents: serverContext.incidents.length,
+            timeOfDay: new Date().getHours(),
+            userTrustScore: behavior.trustScore
+        };
+
+        // Calcul des facteurs de risque
+        const riskFactors = {
+            messageContent: await this.analyzeToxicity(message.content),
+            userHistory: this.calculateUserRisk(behavior),
+            serverContext: this.evaluateServerRisk(serverState),
+            patternMatch: this.detectRiskPatterns(patterns)
+        };
+
+        // Prise de décision autonome
+        const decision = this.evaluateRisksAndDecide(riskFactors);
+        
+        // Apprentissage de la décision
+        this.learnFromDecision(decision, context);
+
+        return decision;
+    }
+
+    evaluateRisksAndDecide(riskFactors) {
+        const totalRisk = Object.values(riskFactors).reduce((a, b) => a + b, 0) / 4;
+        
+        if (totalRisk > this.adaptiveThresholds.risk) {
+            return {
+                action: 'automod',
+                type: totalRisk > 0.9 ? 'ban' : totalRisk > 0.8 ? 'mute' : 'warn',
+                reason: 'Comportement à risque détecté automatiquement',
+                confidence: totalRisk
+            };
+        }
+
+        return {
+            action: 'monitor',
+            type: 'passive',
+            confidence: 1 - totalRisk
+        };
+    }
+
+    getServerContext(guildId) {
+        if (!this.serverContexts.has(guildId)) {
+            this.serverContexts.set(guildId, {
+                messageRate: 0,
+                incidents: [],
+                lastUpdate: Date.now(),
+                adaptiveRules: {
+                    spamThreshold: 5,
+                    toxicityThreshold: 0.6,
+                    warningThreshold: 3
+                }
+            });
+        }
+
+        return this.serverContexts.get(guildId);
+    }
+
+    executeAutoModAction(message, decision) {
+        switch (decision.type) {
+            case 'warn':
+                return this.handleWarning(message, decision.reason);
+            case 'mute':
+                return this.handleMute(message, decision.reason);
+            case 'ban':
+                return this.handleBan(message, decision.reason);
+        }
+    }
+
+    adaptThresholds(decision) {
+        // Ajuster les seuils en fonction du succès des décisions
+        Object.keys(this.adaptiveThresholds).forEach(key => {
+            const currentThreshold = this.adaptiveThresholds[key];
+            const adjustment = decision.success ? 0.01 : -0.01;
+            this.adaptiveThresholds[key] = Math.max(0.3, Math.min(0.9, currentThreshold + adjustment));
+        });
     }
 }
 

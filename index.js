@@ -87,6 +87,25 @@ client.once('ready', async () => {
         console.log('Bot de modération en ligne !');
         logEvent('info', 'Le bot est en ligne et synchronisé.');
 
+        // Envoi du message à l'owner
+        const owner = await client.users.fetch(ownerId);
+        if (owner) {
+            const startupEmbed = {
+                color: 0x00ff00,
+                title: '✅ Bot démarré avec succès',
+                fields: [
+                    { name: 'Status', value: 'Tous les systèmes sont opérationnels', inline: true },
+                    { name: 'Serveurs', value: `${client.guilds.cache.size} serveurs`, inline: true },
+                    { name: 'Utilisateurs', value: `${client.users.cache.size} utilisateurs`, inline: true },
+                    { name: 'Version', value: require('./package.json').version, inline: true },
+                    { name: 'Uptime', value: '0s', inline: true }
+                ],
+                footer: { text: `Node.js ${process.version}` },
+                timestamp: new Date()
+            };
+            await owner.send({ embeds: [startupEmbed] });
+        }
+
         // Message de redémarrage
         if (fs.existsSync('./lastRestart.json')) {
             const lastRestartInfo = JSON.parse(fs.readFileSync('./lastRestart.json', 'utf8'));
