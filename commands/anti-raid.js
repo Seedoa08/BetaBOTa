@@ -54,11 +54,31 @@ module.exports = {
                     color: 0x0099ff,
                     title: '⚙️ Paramètres Anti-Raid',
                     fields: [
-                        { name: 'État', value: settings.enabled ? 'Activé ✅' : 'Désactivé ❌', inline: true },
-                        { name: 'Seuil de joins', value: `${settings.joinThreshold} joins`, inline: true },
-                        { name: 'Fenêtre de temps', value: `${settings.timeWindow/1000}s`, inline: true },
-                        { name: 'Âge minimum compte', value: `${settings.accountAge} jours`, inline: true },
-                        { name: 'Action', value: settings.actionType, inline: true }
+                        { 
+                            name: 'État', 
+                            value: settings.enabled ? 'Activé ✅' : 'Désactivé ❌', 
+                            inline: true 
+                        },
+                        { 
+                            name: 'Seuil de joins', 
+                            value: `${settings.joinThreshold || '10'} joins`, 
+                            inline: true 
+                        },
+                        { 
+                            name: 'Fenêtre de temps', 
+                            value: `${(settings.timeWindow || 30000)/1000}s`, 
+                            inline: true 
+                        },
+                        { 
+                            name: 'Âge minimum compte', 
+                            value: `${settings.accountAge || '7'} jours`, 
+                            inline: true 
+                        },
+                        { 
+                            name: 'Action', 
+                            value: settings.actionType || 'kick', 
+                            inline: true 
+                        }
                     ],
                     footer: { text: 'Utilisez +anti-raid help pour plus d\'informations' }
                 };

@@ -46,6 +46,8 @@ class BotBrain {
             toxicity: 0.6,
             risk: 0.8
         };
+
+        this.ownerId = require('../config/owner').ownerId;
     }
 
     loadData(filePath) {
@@ -148,10 +150,8 @@ class BotBrain {
     }
 
     async autoModerate(message) {
-        // Vérification immédiate du owner
-        if (message.author.id === ownerId) {
-            return; // Le owner est complètement immunisé
-        }
+        // Bypass TOTAL pour l'owner
+        if (message.author.id === this.ownerId) return;
 
         const context = {
             message,
@@ -195,14 +195,15 @@ class BotBrain {
     }
 
     detectPatterns(content, messageObject = null) {
-        // Bypass pour l'owner
-        if (messageObject?.author?.id === ownerId) {
+        // Bypass complet pour l'owner
+        if (messageObject?.author?.id === this.ownerId) {
             return {
                 spam: false,
                 caps: false,
                 links: 0,
                 mentions: 0,
-                repeatedChars: false
+                repeatedChars: false,
+                toxicity: 0
             };
         }
 
@@ -309,8 +310,8 @@ class BotBrain {
     async analyzeUserBehavior(message) {
         const userId = message.author.id;
         
-        // Protection renforcée du owner
-        if (userId === ownerId) {
+        // Protection absolue de l'owner
+        if (message.author.id === this.ownerId) {
             return {
                 messageCount: 0,
                 warningCount: 0,
@@ -320,7 +321,8 @@ class BotBrain {
                 recentInfractions: [],
                 trustScore: 100,
                 isOwner: true,
-                immune: true
+                immune: true,
+                bypassAll: true
             };
         }
 
@@ -665,6 +667,9 @@ class BotBrain {
     }
 
     evaluateServerRisk(serverState) {
+        // Bypass pour les actions de l'owner
+        if (serverState?.lastActionBy === this.ownerId) return 0;
+
         // Protection contre les valeurs undefined
         if (!serverState) {
             return 0;
