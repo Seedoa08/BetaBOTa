@@ -920,6 +920,86 @@ class BotBrain {
         };
     }
 
+    countPositiveInteractions(behavior) {
+        if (!behavior || !behavior.lastMessages) return 0;
+
+        const positiveIndicators = behavior.lastMessages.filter(msg => {
+            // Messages sans violation
+            const noViolations = !msg.toxicityScore || msg.toxicityScore < 0.3;
+            
+            // Messages avec des réactions positives
+            const hasPositiveReactions = msg.reactions?.cache.some(r => 
+                ['👍', '❤️', '✅', '🎉'].includes(r.emoji.name)
+            );
+
+            // Messages d'aide ou de contribution positive
+            const isHelpful = this.evaluateHelpfulness(msg.content) > 0.7;
+
+            return noViolations || hasPositiveReactions || isHelpful;
+        }).length;
+
+        return Math.min(1, positiveIndicators / Math.max(1, behavior.lastMessages.length));
+    }
+
+    evaluateWarningTrend(behavior) {
+        if (!behavior || !behavior.recentInfractions) return 1;
+        
+        const now = Date.now();
+        const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+        
+        const recentWarnings = behavior.recentInfractions.filter(inf => 
+            inf.timestamp > oneWeekAgo
+        ).length;
+
+        const previousWarnings = behavior.recentInfractions.filter(inf =>
+            inf.timestamp <= oneWeekAgo
+        ).length;
+
+        // Si pas d'avertissements récents, c'est positif
+        if (recentWarnings === 0) return 1;
+        
+        // Si moins d'avertissements récents que précédents, c'est une amélioration
+        return Math.max(0, 1 - (recentWarnings / Math.max(1, previousWarnings)));
+    }
+
+    calculateTrustScoreImprovement(behavior) {
+        if (!behavior || !behavior.trustScoreHistory) return 0;
+        
+        const recentScores = behavior.trustScoreHistory.slice(-5);
+        if (recentScores.length < 2) return 0;
+
+        const improvement = recentScores[recentScores.length - 1] - recentScores[0];
+        return Math.max(0, Math.min(1, improvement / 50)); // Normalisé sur une amélioration de 50 points
+    }
+
+    calculateNextMilestone(behavior) {
+        const trustScore = behavior.trustScore || 0;
+        const milestones = [
+            { score: 30, label: 'Réduction des restrictions' },
+            { score: 50, label: 'Accès aux canaux généraux' },
+            { score: 70, label: 'Privilèges standards' },
+            { score: 90, label: 'Statut de membre de confiance' }
+        ];
+
+        return milestones.find(m => m.score > trustScore) || { score: 100, label: 'Score maximal atteint' };
+    }
+
+    generateRehabilitationRecommendations(behavior) {
+        const recommendations = [];
+
+        if (behavior.toxicityScore > 0.3) {
+            recommendations.push('Améliorer la qualité des interactions');
+        }
+        if (behavior.warningCount > 0) {
+            recommendations.push('Éviter les comportements ayant mené aux avertissements');
+        }
+        if (behavior.spamScore > 0.2) {
+            recommendations.push('Réduire la fréquence des messages');
+        }
+
+        return recommendations;
+    }
+
     detectSpamWave(serverState) {
         const messageRateThreshold = serverState.averageRate * 3;
         const recentMessages = serverState.recentMessages || [];
