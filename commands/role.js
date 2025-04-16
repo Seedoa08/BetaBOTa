@@ -2,60 +2,64 @@ const { PermissionsBitField } = require('discord.js');
 
 module.exports = {
     name: 'role',
-    description: 'Gère les rôles des utilisateurs',
+    description: 'Gère les rôles des membres',
     usage: '+role <add/remove/info> @utilisateur @role',
     permissions: 'ManageRoles',
+    variables: [
+        { name: 'add', description: 'Ajoute un rôle à un utilisateur' },
+        { name: 'remove', description: 'Retire un rôle à un utilisateur' },
+        { name: 'info', description: 'Affiche les informations sur un rôle' }
+    ],
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-            return message.reply('❌ Permission manquante: Gérer les rôles');
+            return message.reply('❌ Vous n\'avez pas la permission de gérer les rôles.');
         }
 
-        const action = args[0]?.toLowerCase();
+        const subCommand = args[0]?.toLowerCase();
         const member = message.mentions.members.first();
         const role = message.mentions.roles.first();
 
-        if (!['add', 'remove', 'info'].includes(action) || !member) {
-            return message.reply('❌ Usage: `+role <add/remove/info> @utilisateur @role`');
+        if (!member || !role) {
+            return message.reply('❌ Vous devez mentionner un utilisateur et un rôle.');
         }
 
-        switch(action) {
+        switch (subCommand) {
             case 'add':
-                if (!role) return message.reply('❌ Mentionnez un rôle à ajouter');
-                try {
-                    await member.roles.add(role);
-                    message.reply(`✅ Rôle ${role.name} ajouté à ${member.user.tag}`);
-                } catch (error) {
-                    message.reply('❌ Impossible d\'ajouter ce rôle');
+                if (member.roles.cache.has(role.id)) {
+                    return message.reply('❌ Cet utilisateur a déjà ce rôle.');
                 }
+
+                await member.roles.add(role);
+                message.reply(`✅ Le rôle ${role} a été ajouté à ${member}.`);
                 break;
 
             case 'remove':
-                if (!role) return message.reply('❌ Mentionnez un rôle à retirer');
-                try {
-                    await member.roles.remove(role);
-                    message.reply(`✅ Rôle ${role.name} retiré de ${member.user.tag}`);
-                } catch (error) {
-                    message.reply('❌ Impossible de retirer ce rôle');
+                if (!member.roles.cache.has(role.id)) {
+                    return message.reply('❌ Cet utilisateur n\'a pas ce rôle.');
                 }
+
+                await member.roles.remove(role);
+                message.reply(`✅ Le rôle ${role} a été retiré à ${member}.`);
                 break;
 
             case 'info':
-                const roles = member.roles.cache
-                    .sort((a, b) => b.position - a.position)
-                    .map(r => r.name)
-                    .join(', ');
-                
-                const embed = {
-                    color: member.displayColor || 0x0099ff,
-                    title: `Rôles de ${member.user.tag}`,
-                    description: roles || 'Aucun rôle',
+                const roleEmbed = {
+                    color: role.color,
+                    title: `ℹ️ Informations sur le rôle ${role.name}`,
                     fields: [
-                        { name: 'Nombre de rôles', value: member.roles.cache.size.toString(), inline: true },
-                        { name: 'Rôle le plus haut', value: member.roles.highest.name, inline: true }
+                        { name: 'ID', value: role.id, inline: true },
+                        { name: 'Couleur', value: role.hexColor, inline: true },
+                        { name: 'Position', value: `${role.position}`, inline: true },
+                        { name: 'Mentionnable', value: role.mentionable ? 'Oui' : 'Non', inline: true },
+                        { name: 'Membres', value: `${role.members.size}`, inline: true },
+                        { name: 'Créé le', value: `<t:${Math.floor(role.createdTimestamp / 1000)}:F>`, inline: true }
                     ]
                 };
-                message.reply({ embeds: [embed] });
+                message.reply({ embeds: [roleEmbed] });
                 break;
+
+            default:
+                message.reply('❌ Usage: `+role <add/remove/info> @utilisateur @role`');
         }
     }
 };

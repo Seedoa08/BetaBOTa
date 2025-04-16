@@ -1,46 +1,80 @@
 const { PermissionsBitField } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+
+const settingsPath = path.join(__dirname, '../data/raidSettings.json');
 
 module.exports = {
     name: 'anti-raid',
-    description: 'Configure le système anti-raid',
-    usage: '+anti-raid <enable/disable/settings> [options]',
+    description: 'Configure la protection anti-raid du serveur',
+    usage: '+anti-raid <on/off/settings> [options]',
     permissions: 'Administrator',
+    
+    getSettings(guildId) {
+        let settings = {};
+        if (fs.existsSync(settingsPath)) {
+            const data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+            settings = data[guildId] || this.getDefaultSettings();
+        }
+        return settings;
+    },
+
+    getDefaultSettings() {
+        return {
+            enabled: false,
+            joinThreshold: 10,
+            timeWindow: 30000,
+            accountAge: 7,
+            actionType: 'kick',
+            logChannel: null
+        };
+    },
+
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Cette commande nécessite les permissions Administrateur');
+            return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
         }
 
-        const action = args[0]?.toLowerCase();
-        const antiRaid = message.client.antiRaid;
+        const subCommand = args[0]?.toLowerCase();
+        const settings = this.getSettings(message.guild.id);
 
-        switch(action) {
-            case 'enable':
-                await antiRaid.enableRaidMode(message.guild, 'Activation manuelle par ' + message.author.tag);
-                message.reply('✅ Mode anti-raid activé');
-                break;
+        switch (subCommand) {
+            case 'on':
+                settings.enabled = true;
+                await this.saveSettings(message.guild.id, settings);
+                return message.reply('✅ Protection anti-raid activée.');
 
-            case 'disable':
-                await antiRaid.disableRaidMode(message.guild);
-                message.reply('✅ Mode anti-raid désactivé');
-                break;
+            case 'off':
+                settings.enabled = false;
+                await this.saveSettings(message.guild.id, settings);
+                return message.reply('✅ Protection anti-raid désactivée.');
 
             case 'settings':
-                // Afficher/modifier les paramètres
-                const settings = antiRaid.getSettings(message.guild.id);
                 const embed = {
                     color: 0x0099ff,
                     title: '⚙️ Paramètres Anti-Raid',
-                    fields: Object.entries(settings).map(([key, value]) => ({
-                        name: key,
-                        value: String(value),
-                        inline: true
-                    }))
+                    fields: [
+                        { name: 'État', value: settings.enabled ? 'Activé ✅' : 'Désactivé ❌', inline: true },
+                        { name: 'Seuil de joins', value: `${settings.joinThreshold} joins`, inline: true },
+                        { name: 'Fenêtre de temps', value: `${settings.timeWindow/1000}s`, inline: true },
+                        { name: 'Âge minimum compte', value: `${settings.accountAge} jours`, inline: true },
+                        { name: 'Action', value: settings.actionType, inline: true }
+                    ],
+                    footer: { text: 'Utilisez +anti-raid help pour plus d\'informations' }
                 };
-                message.channel.send({ embeds: [embed] });
-                break;
+                return message.reply({ embeds: [embed] });
 
             default:
-                message.reply('❌ Action invalide. Utilisez `enable`, `disable` ou `settings`');
+                return message.reply('❌ Usage: `+anti-raid <on/off/settings> [options]`');
         }
+    },
+
+    async saveSettings(guildId, settings) {
+        let data = {};
+        if (fs.existsSync(settingsPath)) {
+            data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        }
+        data[guildId] = settings;
+        fs.writeFileSync(settingsPath, JSON.stringify(data, null, 2));
     }
 };

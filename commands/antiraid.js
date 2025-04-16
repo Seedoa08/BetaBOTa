@@ -4,14 +4,13 @@ const raidConfigFile = './raidConfig.json';
 
 module.exports = {
     name: 'antiraid',
-    description: 'Configure le système anti-raid du serveur',
-    usage: '+antiraid <on/off/config/status>',
+    description: 'Configure la protection anti-raid avancée',
+    usage: '+antiraid <view/setup/config> [options]',
     permissions: 'Administrator',
     variables: [
-        { name: 'on', description: 'Active le système anti-raid' },
-        { name: 'off', description: 'Désactive le système anti-raid' },
-        { name: 'config', description: 'Configure les paramètres (joinLimit/timeWindow/action/punishment)' },
-        { name: 'status', description: 'Affiche le statut actuel du système anti-raid' }
+        { name: 'view', description: 'Affiche la configuration actuelle' },
+        { name: 'setup', description: 'Configure la protection anti-raid' },
+        { name: 'config', description: 'Modifie les paramètres' }
     ],
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {

@@ -4,12 +4,13 @@ const path = require('path');
 
 module.exports = {
     name: 'logs',
-    description: 'Affiche les logs du serveur avec différents filtres.',
-    usage: '+logs [type] [--page numéro]',
-    permissions: 'ManageGuild',
+    description: 'Gère les logs du serveur',
+    usage: '+logs <setup/view/config> [options]',
+    permissions: 'Administrator',
     variables: [
-        { name: 'type', description: 'Type de logs (all/bans/messages/boosts/roles/kicks)' },
-        { name: '--page', description: 'Numéro de la page à afficher' }
+        { name: 'setup', description: 'Configure le salon des logs' },
+        { name: 'view', description: 'Affiche les logs récents' },
+        { name: 'config', description: 'Configure les types de logs' }
     ],
     async execute(message, args) {
         // Vérification des permissions

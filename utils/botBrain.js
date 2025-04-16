@@ -846,17 +846,63 @@ class BotBrain {
     }
 
     async evaluateInteractionQuality(message) {
+        if (!message || !message.content) return { score: 0, factors: {} };
+
         const qualityFactors = {
             formatting: this.evaluateFormatting(message.content),
-            relevance: await this.evaluateRelevance(message),
-            engagement: this.calculateEngagementScore(message),
-            helpfulness: this.evaluateHelpfulness(message)
+            relevance: 0.5, // Valeur par défaut car l'évaluation de pertinence nécessite plus de contexte
+            engagement: this.calculateEngagementScore(message) || 0,
+            helpfulness: this.evaluateHelpfulness(message.content) || 0
         };
 
         return {
-            score: Object.values(qualityFactors).reduce((a, b) => a + b, 0) / 4,
+            score: Object.values(qualityFactors).reduce((a, b) => a + b, 0) / Object.keys(qualityFactors).length,
             factors: qualityFactors
         };
+    }
+
+    evaluateFormatting(content) {
+        if (!content || typeof content !== 'string') return 0;
+
+        const checks = {
+            properPunctuation: /[.!?]$/.test(content),
+            properCapitalization: /^[A-Z]/.test(content),
+            noExcessivePunctuation: !/[!?]{3,}/.test(content),
+            noExcessiveCaps: (content.match(/[A-Z]/g) || []).length / content.length < 0.7,
+            noRepeatedChars: !/(.)\1{4,}/.test(content),
+            reasonableLength: content.length >= 2 && content.length <= 2000,
+            hasWords: /\w+/.test(content)
+        };
+
+        const validChecks = Object.values(checks).filter(Boolean).length;
+        return validChecks / Object.keys(checks).length;
+    }
+
+    calculateEngagementScore(message) {
+        if (!message) return 0;
+        
+        const factors = {
+            hasContent: message.content.length > 0,
+            hasAttachments: message.attachments.size > 0,
+            hasMentions: message.mentions.users.size > 0,
+            isReply: !!message.reference
+        };
+
+        return Object.values(factors).filter(Boolean).length / Object.keys(factors).length;
+    }
+
+    evaluateHelpfulness(content) {
+        if (!content || typeof content !== 'string') return 0;
+
+        const helpfulPatterns = {
+            explanation: /parce que|car|donc|ainsi|en effet/i,
+            suggestion: /tu peux|vous pouvez|essayez de|je suggère/i,
+            guidance: /voici|regardez|suivez|étape/i,
+            politeness: /s'il (te|vous) plaît|merci|svp/i
+        };
+
+        const matches = Object.values(helpfulPatterns).filter(pattern => pattern.test(content));
+        return matches.length / Object.keys(helpfulPatterns).length;
     }
 
     evaluateRehabilitation(behavior) {

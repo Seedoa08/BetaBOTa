@@ -1,8 +1,11 @@
 module.exports = {
     name: 'info',
-    description: 'Affiche des informations sur une commande spécifique ou sur le bot.',
-    usage: '+info [commande]',
+    description: 'Affiche des informations sur une commande spécifique.',
+    usage: '+info <commande>',
     permissions: 'Aucune',
+    variables: [
+        { name: 'commande', description: 'Nom de la commande pour voir ses informations.' }
+    ],
     async execute(message, args) {
         const commandName = args[0]?.toLowerCase();
         const command = message.client.commands.get(commandName) || message.client.commands.find(cmd => cmd.aliases?.includes(commandName));
@@ -30,14 +33,19 @@ module.exports = {
             return message.reply(`❌ La commande \`${commandName}\` n'existe pas.`);
         }
 
-        const commandInfoEmbed = {
+        const infoEmbed = {
             color: 0x0099ff,
-            title: `ℹ️ Informations sur la commande \`${command.name}\``,
+            title: `ℹ️ Informations sur la commande ${command.name}`,
+            description: command.description || 'Aucune description disponible.',
             fields: [
-                { name: 'Description', value: command.description || 'Aucune description disponible.' },
-                { name: 'Usage', value: command.usage || 'Non spécifié.' },
-                { name: 'Permissions nécessaires', value: command.permissions || 'Aucune' },
-                { name: 'Alias', value: command.aliases?.join(', ') || 'Aucun' }
+                { 
+                    name: 'Usage',
+                    value: `\`${command.usage || 'Non spécifié'}\``
+                },
+                {
+                    name: 'Permissions nécessaires',
+                    value: command.permissions || 'Aucune'
+                }
             ],
             footer: {
                 text: `Demandé par ${message.author.tag}`,
@@ -46,15 +54,26 @@ module.exports = {
             timestamp: new Date()
         };
 
-        if (command.variables) {
-            commandInfoEmbed.fields.push({
-                name: 'Variables/Options',
-                value: command.variables.map(v => `\`${v.name}\`: ${v.description}`).join('\n') || 'Aucune'
+        // Ajouter les options si elles existent
+        if (command.variables && command.variables.length > 0) {
+            infoEmbed.fields.push({
+                name: 'Options',
+                value: command.variables.map(v => 
+                    `\`${v.name}\`: ${v.description}`
+                ).join('\n')
+            });
+        }
+
+        // Ajouter les alias si ils existent
+        if (command.aliases?.length > 0) {
+            infoEmbed.fields.push({
+                name: 'Alias',
+                value: command.aliases.map(a => `\`${a}\``).join(', ')
             });
         }
 
         try {
-            await message.channel.send({ embeds: [commandInfoEmbed] });
+            await message.channel.send({ embeds: [infoEmbed] });
         } catch (error) {
             console.error('Erreur dans la commande info:', error);
             message.reply('❌ Une erreur est survenue lors de l\'envoi des informations.');

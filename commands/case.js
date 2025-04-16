@@ -4,9 +4,14 @@ const path = require('path');
 
 module.exports = {
     name: 'case',
-    description: 'Affiche ou modifie un cas de modération',
-    usage: '+case <ID> [edit/delete] [raison]',
-    permissions: 'ModerateMembers',
+    description: 'Gère les cas de modération',
+    usage: '+case <view/edit/delete> <ID>',
+    permissions: 'ManageMessages',
+    variables: [
+        { name: 'view', description: 'Affiche les détails d\'un cas' },
+        { name: 'edit', description: 'Modifie un cas' },
+        { name: 'delete', description: 'Supprime un cas' }
+    ],
     async execute(message, args) {
         const casesPath = path.join(__dirname, '../data/cases.json');
         const cases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
