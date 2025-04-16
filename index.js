@@ -184,6 +184,20 @@ const globalCooldowns = new Map();
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
+    // Vérifier la maintenance
+    const maintenanceFile = './data/maintenance.json';
+    if (fs.existsSync(maintenanceFile)) {
+        const maintenance = JSON.parse(fs.readFileSync(maintenanceFile));
+        if (maintenance.active && !owners.includes(message.author.id)) {
+            // Autoriser uniquement les commandes essentielles en maintenance
+            const allowedCommands = ['help', 'ping', 'maintenance'];
+            const command = message.content.slice(prefix.length).split(' ')[0];
+            if (!allowedCommands.includes(command)) {
+                return message.reply('⚠️ Le bot est actuellement en maintenance. Seules les commandes essentielles sont disponibles.');
+            }
+        }
+    }
+
     // Analyse comportementale avancée
     const behavior = await botBrain.analyzeUserBehavior(message);
     

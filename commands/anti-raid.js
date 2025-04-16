@@ -1,6 +1,7 @@
 const { PermissionsBitField } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const serverConfig = require('../utils/serverConfig');
 
 const settingsPath = path.join(__dirname, '../data/raidSettings.json');
 
@@ -33,6 +34,18 @@ module.exports = {
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
             return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
+        }
+
+        const config = serverConfig.getConfig(message.guild.id);
+        
+        if (args[0]?.toLowerCase() === 'on') {
+            serverConfig.updateConfig(message.guild.id, { antiRaid: true });
+            return message.reply('✅ Protection anti-raid activée pour ce serveur.');
+        }
+
+        if (args[0]?.toLowerCase() === 'off') {
+            serverConfig.updateConfig(message.guild.id, { antiRaid: false });
+            return message.reply('✅ Protection anti-raid désactivée pour ce serveur.');
         }
 
         const subCommand = args[0]?.toLowerCase();

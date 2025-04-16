@@ -12,10 +12,10 @@ module.exports = {
         { name: 'list', description: 'Affiche la liste des utilisateurs autorisés' }
     ],
     async execute(message, args) {
-        const ownerId = '1061373376767201360';
+        const { owners } = require('../config/owners');
 
-        if (message.author.id !== ownerId) {
-            return message.reply('❌ Cette commande est réservée à l\'owner du bot.');
+        if (!owners.includes(message.author.id)) {
+            return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
 
         try {

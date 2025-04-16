@@ -150,6 +150,11 @@ class BotBrain {
     }
 
     async autoModerate(message) {
+        const serverConfig = require('./serverConfig').getConfig(message.guild.id);
+        
+        // Vérifier si l'automod est activé pour ce serveur
+        if (!serverConfig.automod) return;
+
         // Bypass TOTAL pour l'owner
         if (message.author.id === this.ownerId) return;
 
@@ -477,6 +482,7 @@ class BotBrain {
     }
 
     async analyzeMessage(message) {
+        const serverConfig = require('./serverConfig').getConfig(message.guild.id);
         const content = message.content.toLowerCase();
         const result = {
             shouldAct: false,
@@ -499,6 +505,14 @@ class BotBrain {
         if (toxicityScore > 0.7 || result.spamScore > 0.8 || patterns.spam) {
             result.shouldAct = true;
             result.action = this.determineAction(toxicityScore, result.spamScore, patterns);
+        }
+        
+        // Utiliser les paramètres spécifiques au serveur
+        if (serverConfig.automod) {
+            // Appliquer les règles spécifiques au serveur
+            if (patterns.mentions > serverConfig.maxMentions) {
+                result.shouldAct = true;
+            }
         }
 
         return result;

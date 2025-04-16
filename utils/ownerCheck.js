@@ -1,14 +1,5 @@
-const { ownerId } = require('../config/owner');
+const { owners } = require('../config/owners');
 
-function isOwner(userId) {
-    return userId === ownerId;
-}
-
-function bypassModeration(userId) {
-    return userId === ownerId;
-}
-
-module.exports = {
-    isOwner,
-    bypassModeration
+module.exports = function isOwner(userId) {
+    return owners.includes(userId);
 };
