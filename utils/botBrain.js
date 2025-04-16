@@ -613,6 +613,107 @@ class BotBrain {
             this.adaptiveThresholds[key] = Math.max(0.3, Math.min(0.9, currentThreshold + adjustment));
         });
     }
+
+    calculateUserRisk(behavior) {
+        if (!behavior) return 0;
+
+        let risk = 0;
+        
+        // Facteurs de risque basés sur le comportement
+        if (behavior.toxicityScore > 0.5) risk += 0.3;
+        if (behavior.trustScore < 50) risk += 0.3;
+        if (behavior.recentInfractions.length > 2) risk += 0.2;
+        if (behavior.warningCount > 3) risk += 0.2;
+
+        // Analyse des messages récents
+        const recentMessageCount = behavior.lastMessages.filter(
+            msg => Date.now() - msg.timestamp < 300000 // 5 dernières minutes
+        ).length;
+        if (recentMessageCount > 15) risk += 0.2;
+
+        return Math.min(1, risk);
+    }
+
+    evaluateServerRisk(serverState) {
+        let risk = 0;
+
+        // Facteurs de risque basés sur l'état du serveur
+        if (serverState.activityLevel > 100) risk += 0.2; // Haute activité
+        if (serverState.recentIncidents > 5) risk += 0.3; // Incidents récents
+        if (serverState.userTrustScore < 30) risk += 0.3; // Faible score de confiance
+
+        // Facteur horaire (plus de risque la nuit)
+        const hour = serverState.timeOfDay;
+        if (hour >= 0 && hour <= 5) risk += 0.2;
+
+        return Math.min(1, risk);
+    }
+
+    detectRiskPatterns(patterns) {
+        let risk = 0;
+
+        // Évaluation des patterns à risque
+        if (patterns.spam) risk += 0.4;
+        if (patterns.caps) risk += 0.1;
+        if (patterns.links > 2) risk += 0.2;
+        if (patterns.mentions > 3) risk += 0.2;
+        if (patterns.repeatedChars) risk += 0.1;
+
+        return Math.min(1, risk);
+    }
+
+    learnFromDecision(decision, context) {
+        const guildId = context.message.guild.id;
+        const serverContext = this.getServerContext(guildId);
+
+        // Mise à jour des statistiques du serveur
+        serverContext.messageRate = this.calculateNewRate(
+            serverContext.messageRate,
+            context.message.createdTimestamp
+        );
+
+        // Enregistrement des incidents si nécessaire
+        if (decision.action === 'automod') {
+            serverContext.incidents.push({
+                type: decision.type,
+                timestamp: Date.now(),
+                confidence: decision.confidence
+            });
+
+            // Garder seulement les 50 derniers incidents
+            if (serverContext.incidents.length > 50) {
+                serverContext.incidents = serverContext.incidents.slice(-50);
+            }
+        }
+
+        // Mise à jour des règles adaptatives
+        this.updateAdaptiveRules(serverContext, decision);
+    }
+
+    calculateNewRate(currentRate, timestamp) {
+        const decay = 0.95; // Facteur de décroissance
+        const timeDiff = (Date.now() - timestamp) / 1000; // Différence en secondes
+        return (currentRate * decay) + (1 / Math.max(1, timeDiff));
+    }
+
+    updateAdaptiveRules(serverContext, decision) {
+        const rules = serverContext.adaptiveRules;
+        const adjustment = 0.05;
+
+        if (decision.success) {
+            // Renforcer les règles qui ont bien fonctionné
+            rules.spamThreshold *= (1 - adjustment);
+            rules.toxicityThreshold *= (1 - adjustment);
+        } else {
+            // Assouplir les règles qui ont généré des faux positifs
+            rules.spamThreshold *= (1 + adjustment);
+            rules.toxicityThreshold *= (1 + adjustment);
+        }
+
+        // Garder les seuils dans des limites raisonnables
+        rules.spamThreshold = Math.max(3, Math.min(10, rules.spamThreshold));
+        rules.toxicityThreshold = Math.max(0.3, Math.min(0.9, rules.toxicityThreshold));
+    }
 }
 
 module.exports = BotBrain;
