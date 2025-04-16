@@ -1,11 +1,18 @@
-const { PermissionsBitField } = require('discord.js');
+const { PermissionsBitField, EmbedBuilder } = require('discord.js');
 
 class RaidProtection {
     constructor(client) {
         this.client = client;
+        this.joinQueue = new Map();
         this.raidMode = new Map();
         this.lockdownMode = new Map();
         this.quarantineRole = new Map();
+        this.settings = {
+            joinThreshold: 8,
+            timeWindow: 10000,
+            accountAgeDays: 7,
+            actionDuration: 1800000 // 30 minutes
+        };
     }
 
     async enableRaidMode(guild, reason) {
@@ -41,6 +48,20 @@ class RaidProtection {
             ],
             reason: 'Création du rôle de quarantaine pour la protection anti-raid'
         });
+    }
+
+    onGuildMemberAdd(member) {
+        this.checkJoinRaid(member);
+        this.checkAccountAge(member);
+        this.updateJoinQueue(member);
+    }
+
+    async checkJoinRaid(member) {
+        const recentJoins = this.getRecentJoins(member.guild.id);
+        
+        if (recentJoins.length >= this.settings.joinThreshold) {
+            await this.enableRaidProtection(member.guild, 'Détection de raid - Joins massifs');
+        }
     }
 
     // ...autres méthodes de protection

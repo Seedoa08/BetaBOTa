@@ -1,41 +1,46 @@
 const { PermissionsBitField } = require('discord.js');
+const ms = require('ms');
 
 module.exports = {
     name: 'slowmode',
-    description: 'Configure le mode lent dans un salon',
-    usage: '+slowmode <durée> [raison]',
+    description: 'Configure le mode lent du canal',
+    usage: '+slowmode [durée/off] [raison]',
     permissions: 'ManageChannels',
     variables: [
-        { name: 'durée', description: 'Durée en secondes (0 pour désactiver)' },
-        { name: 'raison', description: 'Raison du slowmode (facultatif)' }
+        { name: '[durée]', description: 'Durée du mode lent (ex: 5s, 10m, 1h) ou "off"' },
+        { name: '[raison]', description: 'Raison de l\'activation du mode lent' }
     ],
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
             return message.reply('❌ Vous n\'avez pas la permission de gérer les canaux.');
         }
 
-        const seconds = parseInt(args[0]);
-        if (isNaN(seconds) || seconds < 0 || seconds > 21600) {
-            return message.reply('❌ La durée doit être entre 0 et 21600 secondes (6 heures).');
+        const duration = args[0]?.toLowerCase();
+        if (!duration) {
+            return message.reply('✨ Mode lent actuel: ' + (message.channel.rateLimitPerUser || 'désactivé'));
         }
 
-        const reason = args.slice(1).join(' ') || 'Aucune raison fournie.';
+        if (duration === 'off') {
+            await message.channel.setRateLimitPerUser(0, 'Mode lent désactivé');
+            return message.reply('✅ Mode lent désactivé.');
+        }
+
+        const seconds = Math.min(21600, ms(duration) / 1000);
+        if (isNaN(seconds)) {
+            return message.reply('❌ Durée invalide. Utilisez un format valide (ex: 5s, 10m, 1h).');
+        }
+
+        const reason = args.slice(1).join(' ') || 'Aucune raison fournie';
         
         try {
             await message.channel.setRateLimitPerUser(seconds, reason);
             const embed = {
-                color: seconds === 0 ? 0x00ff00 : 0xff9900,
-                title: seconds === 0 ? '🚫 Slowmode désactivé' : '⏱️ Slowmode activé',
-                description: seconds === 0 ? 
-                    'Le mode lent a été désactivé.' : 
-                    `Mode lent configuré sur ${seconds} secondes.`,
-                fields: [
-                    { name: 'Salon', value: `<#${message.channel.id}>`, inline: true },
-                    { name: 'Modérateur', value: message.author.tag, inline: true },
-                    { name: 'Raison', value: reason }
-                ]
+                color: 0x0099ff,
+                title: '⏰ Mode lent activé',
+                description: `Les membres doivent maintenant attendre ${ms(seconds * 1000, { long: true })} entre chaque message.`,
+                footer: { text: `Modérateur: ${message.author.tag}` }
             };
-            message.reply({ embeds: [embed] });
+            message.channel.send({ embeds: [embed] });
         } catch (error) {
             console.error('Erreur lors de la configuration du mode lent:', error);
             message.reply('❌ Une erreur est survenue lors de la configuration du mode lent.');

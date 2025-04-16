@@ -1,35 +1,58 @@
-const { PermissionsBitField } = require('discord.js');
+const { PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
     name: 'snipe',
-    description: 'Affiche le dernier message supprimé dans le canal',
-    usage: '+snipe',
+    description: 'Affiche les derniers messages supprimés dans le salon.',
+    usage: '+snipe [nombre]',
     permissions: 'ManageMessages',
-    async execute(message) {
-        const snipedMessage = message.client.snipes.get(message.channel.id);
-
-        if (!snipedMessage) {
-            return message.reply('❌ Aucun message supprimé récemment dans ce canal.');
+    async execute(message, args) {
+        if (!message.member.permissions.has('ManageMessages')) {
+            return message.reply('❌ Vous n\'avez pas la permission de voir les messages supprimés.');
         }
 
-        const embed = {
+        const snipes = Array.from(message.client.snipes.entries())
+            .filter(([channelId]) => channelId === message.channel.id)
+            .map(([, snipe]) => snipe);
+
+        if (!snipes.length) {
+            return message.reply('❌ Aucun message supprimé à afficher.');
+        }
+
+        let currentPage = 0;
+
+        const generateEmbed = (page) => ({
             color: 0x0099ff,
             author: {
-                name: snipedMessage.author.tag,
-                icon_url: snipedMessage.author.displayAvatarURL({ dynamic: true })
+                name: snipes[page].author.tag,
+                icon_url: snipes[page].author.displayAvatarURL({ dynamic: true })
             },
-            description: snipedMessage.content || '*Aucun contenu textuel*',
-            footer: {
-                text: `Message supprimé • ${snipedMessage.date}`
-            },
-            timestamp: new Date()
-        };
+            description: snipes[page].content || 'Aucun contenu',
+            image: snipes[page].image ? { url: snipes[page].image } : null,
+            footer: { text: `Message ${page + 1}/${snipes.length} • ${snipes[page].date}` }
+        });
 
-        // Ajout des images si présentes dans le message supprimé
-        if (snipedMessage.image) {
-            embed.image = { url: snipedMessage.image };
-        }
+        const getButtons = (page) => new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('previous')
+                .setLabel('◀️')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(page === 0),
+            new ButtonBuilder()
+                .setCustomId('next')
+                .setLabel('▶️')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(page === snipes.length - 1),
+            new ButtonBuilder()
+                .setCustomId('delete')
+                .setLabel('🗑️')
+                .setStyle(ButtonStyle.Danger)
+        );
 
-        await message.channel.send({ embeds: [embed] });
+        const msg = await message.reply({
+            embeds: [generateEmbed(0)],
+            components: [getButtons(0)]
+        });
+
+        // ...existing code...
     }
 };
