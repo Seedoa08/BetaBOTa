@@ -7,10 +7,25 @@ module.exports = {
     permissions: 'Aucune',
     async execute(message, args) {
         const categories = {
-            "🛡️ Modération": ["ban", "kick", "mute", "warn", "clear", "lock", "unlock", "nuke", "slowmode"],
-            "⚙️ Configuration": ["serverinfo", "userinfo", "owneronly", "role"],
-            "📊 Utilitaires": ["ping", "help", "helpall", "info", "restart"],
-            "🎭 Gestion des sanctions": ["warnings", "clearwarns", "tempmute", "unmute"]
+            "🛡️ Modération": [
+                "ban", "kick", "mute", "tempmute", "unmute",
+                "warn", "warnings", "clear", "lock", "unlock",
+                "nuke", "slowmode"
+            ],
+            "⚙️ Configuration": [
+                "serverinfo", "userinfo", "role", "anti-raid",
+                "raid-mode"
+            ],
+            "🔒 Owner Only": [
+                "eval", "owneronly", "maintenance", "debug",
+                "restart"
+            ],
+            "📊 Utilitaires": [
+                "ping", "help", "info", "snipe"
+            ],
+            "🛠️ Protection": [
+                "raid-mode", "anti-raid", "lockdown"
+            ]
         };
 
         const searchQuery = args[0]?.toLowerCase();
@@ -40,7 +55,13 @@ module.exports = {
         }
 
         const embeds = Object.entries(categories)
-            .filter(([_, commands]) => commands.length > 0) // Filtrer les catégories vides
+            .filter(([category, commands]) => {
+                // Ne montrer les commandes owner que si c'est l'owner
+                if (category === "🔒 Owner Only" && message.author.id !== ownerId) {
+                    return false;
+                }
+                return commands.length > 0;
+            })
             .map(([category, commands]) => {
                 const pages = [];
                 const commandsPerPage = 5; // Nombre de commandes par page

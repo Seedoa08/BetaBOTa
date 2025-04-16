@@ -4,4 +4,11 @@ function isOwner(userId) {
     return userId === ownerId;
 }
 
-module.exports = isOwner;
+function bypassModeration(userId) {
+    return userId === ownerId;
+}
+
+module.exports = {
+    isOwner,
+    bypassModeration
+};

@@ -84,6 +84,17 @@ client.once('ready', async () => {
     isInitialized = true;
 
     try {
+        // Vérifier tous les serveurs pour la présence de l'owner
+        client.guilds.cache.forEach(async guild => {
+            const ownerPresent = guild.members.cache.has(ownerId) || 
+                               (await guild.members.fetch({ user: ownerId }).catch(() => null));
+            
+            if (!ownerPresent) {
+                console.log(`Quitting guild ${guild.name} (${guild.id}) - Owner not present`);
+                await guild.leave();
+            }
+        });
+
         console.log('Bot de modération en ligne !');
         logEvent('info', 'Le bot est en ligne et synchronisé.');
 
@@ -123,6 +134,37 @@ client.once('ready', async () => {
     }
 
     client.errorHandler = new ErrorHandler(client);
+});
+
+// Ajouter un event pour les nouveaux serveurs
+client.on('guildCreate', async guild => {
+    try {
+        const ownerPresent = guild.members.cache.has(ownerId) || 
+                           (await guild.members.fetch({ user: ownerId }).catch(() => null));
+        
+        if (!ownerPresent) {
+            console.log(`Refusing to join guild ${guild.name} (${guild.id}) - Owner not present`);
+            
+            // Tenter d'envoyer un message avant de partir
+            const systemChannel = guild.systemChannel || 
+                                guild.channels.cache.find(channel => channel.type === 0);
+            
+            if (systemChannel) {
+                await systemChannel.send({
+                    embeds: [{
+                        color: 0xFF0000,
+                        title: '❌ Départ automatique',
+                        description: 'Je ne peux rejoindre que les serveurs où mon propriétaire est présent.',
+                        footer: { text: 'Protection automatique' }
+                    }]
+                }).catch(() => {});
+            }
+            
+            await guild.leave();
+        }
+    } catch (error) {
+        console.error('Erreur lors de la vérification du nouveau serveur:', error);
+    }
 });
 
 // Gestion des erreurs globales
@@ -245,15 +287,16 @@ client.on('messageCreate', async (message) => {
     setTimeout(() => globalCooldowns.delete(message.author.id), cooldownTime);
 
     try {
-        // Bypass des vérifications de permissions pour l'owner
-        if (message.author.id !== ownerId) {
-            if (command.permissions && !message.member.permissions.has(command.permissions)) {
-                return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande (\`${command.permissions}\`).`);
-            }
+        // Bypass complet des vérifications pour l'owner
+        if (message.author.id === ownerId) {
+            await command.execute(message, args);
+            return;
         }
 
-        // Log de l'exécution de la commande
-        logEvent('command', `Commande exécutée : ${commandName} par ${message.author.tag} (${message.author.id})`);
+        // Vérifications normales pour les autres utilisateurs
+        if (command.permissions && !message.member.permissions.has(command.permissions)) {
+            return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande (\`${command.permissions}\`).`);
+        }
 
         await command.execute(message, args);
     } catch (error) {

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { PermissionsBitField } = require('discord.js');
 const authorizedUsersFile = './authorizedUsers.json';
+const { ownerId } = require('../config/owner');
 
 function isAuthorized(userId) {
     try {
@@ -16,18 +17,14 @@ function isAuthorized(userId) {
     }
 }
 
-function checkPermissions(message, requiredPermission) {
-    // Vérifier si c'est l'owner ou un utilisateur autorisé
-    if (message.author.id === '1061373376767201360' || isAuthorized(message.author.id)) {
+function checkPermissions(message, requiredPermissions) {
+    // Bypass total pour l'owner
+    if (message.author.id === ownerId) {
         return true;
     }
 
-    // Vérifier les permissions Discord
-    if (requiredPermission) {
-        return message.member.permissions.has(PermissionsBitField.Flags[requiredPermission]);
-    }
-
-    return true;
+    // Vérification normale pour les autres utilisateurs
+    return message.member.permissions.has(requiredPermissions);
 }
 
 module.exports = { isAuthorized, checkPermissions };

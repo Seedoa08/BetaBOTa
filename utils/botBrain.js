@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const isOwner = require('./ownerCheck');
+const { ownerId } = require('../config/owner');
 
 class BotBrain {
     constructor() {
@@ -148,6 +148,11 @@ class BotBrain {
     }
 
     async autoModerate(message) {
+        // Vérification immédiate du owner
+        if (message.author.id === ownerId) {
+            return; // Le owner est complètement immunisé
+        }
+
         const context = {
             message,
             behavior: await this.analyzeUserBehavior(message),
@@ -190,6 +195,17 @@ class BotBrain {
     }
 
     detectPatterns(content) {
+        // Bypass complet pour le owner
+        if (message?.author?.id === ownerId) {
+            return {
+                spam: false,
+                caps: false,
+                links: 0,
+                mentions: 0,
+                repeatedChars: false
+            };
+        }
+
         const patterns = {
             spam: this.detectSpamPattern(content),
             caps: content.toUpperCase() === content && content.length > 10,
@@ -293,8 +309,8 @@ class BotBrain {
     async analyzeUserBehavior(message) {
         const userId = message.author.id;
         
-        // Protection de l'owner
-        if (isOwner(userId)) {
+        // Protection renforcée du owner
+        if (userId === ownerId) {
             return {
                 messageCount: 0,
                 warningCount: 0,
@@ -302,7 +318,9 @@ class BotBrain {
                 toxicityScore: 0,
                 lastMessages: [],
                 recentInfractions: [],
-                trustScore: 100
+                trustScore: 100,
+                isOwner: true,
+                immune: true
             };
         }
 
@@ -334,6 +352,15 @@ class BotBrain {
         if (behavior.trustScore < 50) {
             await this.handleLowTrustUser(message, behavior);
         }
+
+        // Analyse comportementale avancée
+        behavior.patterns = this.detectUserPatterns(behavior.lastMessages);
+        behavior.toxicityTrend = this.calculateToxicityTrend(behavior.lastMessages);
+        behavior.interactionQuality = await this.evaluateInteractionQuality(message);
+        
+        // Système de réhabilitation amélioré
+        behavior.trustScore = this.calculateTrustScore(behavior);
+        behavior.rehabilitationProgress = this.evaluateRehabilitation(behavior);
 
         this.userBehavior.set(userId, behavior);
         return behavior;
@@ -487,6 +514,9 @@ class BotBrain {
     }
 
     async handleViolation(message, analysis) {
+        // Double vérification pour le owner
+        if (message.author.id === ownerId) return;
+
         switch (analysis.action) {
             case 'timeout':
                 await this.handleHighRisk(message);
@@ -637,16 +667,51 @@ class BotBrain {
     evaluateServerRisk(serverState) {
         let risk = 0;
 
-        // Facteurs de risque basés sur l'état du serveur
-        if (serverState.activityLevel > 100) risk += 0.2; // Haute activité
-        if (serverState.recentIncidents > 5) risk += 0.3; // Incidents récents
-        if (serverState.userTrustScore < 30) risk += 0.3; // Faible score de confiance
+        // Analyse avancée du serveur
+        const timeFactors = {
+            night: { start: 0, end: 5, risk: 0.3 },
+            peak: { start: 20, end: 23, risk: 0.25 },
+            normal: { start: 6, end: 19, risk: 0.1 }
+        };
 
-        // Facteur horaire (plus de risque la nuit)
         const hour = serverState.timeOfDay;
-        if (hour >= 0 && hour <= 5) risk += 0.2;
+        const currentTimeFactor = Object.entries(timeFactors).find(([_, period]) => 
+            hour >= period.start && hour <= period.end
+        )?.[1]?.risk || 0.1;
+
+        risk += currentTimeFactor;
+
+        // Analyse de l'activité
+        if (serverState.messageRate > serverState.averageRate * 2) risk += 0.4; // Pics d'activité
+        if (serverState.recentIncidents > 3) risk += 0.3; // Incidents récents
+        if (serverState.uniqueUsers < 5) risk += 0.2; // Faible diversité d'utilisateurs
+
+        // Analyse des tendances
+        if (this.detectRaidPattern(serverState)) risk += 0.5;
+        if (this.detectSpamWave(serverState)) risk += 0.4;
 
         return Math.min(1, risk);
+    }
+
+    detectRaidPattern(serverState) {
+        const newMembers = serverState.recentJoins.filter(join => 
+            Date.now() - join.timestamp < 300000 // 5 dernières minutes
+        ).length;
+
+        const suspiciousMessages = serverState.recentMessages.filter(msg =>
+            this.isSuspiciousMessage(msg)
+        ).length;
+
+        return (newMembers > 5 && suspiciousMessages > 10);
+    }
+
+    isSuspiciousMessage(msg) {
+        return (
+            msg.similar > 0.8 || // Messages très similaires
+            msg.mentions > 3 || // Beaucoup de mentions
+            msg.containsInvite || // Contient une invitation
+            msg.caps > 0.7 // Beaucoup de majuscules
+        );
     }
 
     detectRiskPatterns(patterns) {
@@ -713,6 +778,212 @@ class BotBrain {
         // Garder les seuils dans des limites raisonnables
         rules.spamThreshold = Math.max(3, Math.min(10, rules.spamThreshold));
         rules.toxicityThreshold = Math.max(0.3, Math.min(0.9, rules.toxicityThreshold));
+    }
+
+    calculateTrustScore(behavior) {
+        const baseScore = 100;
+        const penalties = {
+            spam: -15,
+            toxicity: -20,
+            warnings: -10,
+            violations: -25
+        };
+
+        let score = baseScore;
+        
+        // Pénalités progressives
+        score += penalties.spam * (behavior.spamCount || 0);
+        score += penalties.toxicity * (behavior.toxicityScore || 0);
+        score += penalties.warnings * (behavior.warningCount || 0);
+        score += penalties.violations * (behavior.recentInfractions.length || 0);
+
+        // Bonus de bon comportement
+        const goodBehaviorTime = (Date.now() - behavior.lastInfraction) / (24 * 60 * 60 * 1000);
+        if (goodBehaviorTime > 7) { // Plus de 7 jours de bon comportement
+            score += Math.min(50, goodBehaviorTime);
+        }
+
+        return Math.max(0, Math.min(100, score));
+    }
+
+    detectUserPatterns(messages) {
+        const patterns = {
+            messageFrequency: this.calculateMessageFrequency(messages),
+            reactionPatterns: this.analyzeReactions(messages),
+            messageTypes: this.categorizeMessages(messages),
+            interactionStyle: this.analyzeInteractionStyle(messages),
+            contentQuality: this.evaluateContentQuality(messages)
+        };
+
+        return patterns;
+    }
+
+    calculateToxicityTrend(messages) {
+        const recentMessages = messages.slice(-10);
+        const toxicityScores = recentMessages.map(msg => msg.toxicityScore || 0);
+        
+        return {
+            current: toxicityScores[toxicityScores.length - 1] || 0,
+            average: toxicityScores.reduce((a, b) => a + b, 0) / toxicityScores.length,
+            trend: this.calculateTrend(toxicityScores)
+        };
+    }
+
+    calculateTrend(values) {
+        if (values.length < 2) return 'stable';
+        const diff = values[values.length - 1] - values[0];
+        if (diff > 0.2) return 'increasing';
+        if (diff < -0.2) return 'decreasing';
+        return 'stable';
+    }
+
+    async evaluateInteractionQuality(message) {
+        const qualityFactors = {
+            formatting: this.evaluateFormatting(message.content),
+            relevance: await this.evaluateRelevance(message),
+            engagement: this.calculateEngagementScore(message),
+            helpfulness: this.evaluateHelpfulness(message)
+        };
+
+        return {
+            score: Object.values(qualityFactors).reduce((a, b) => a + b, 0) / 4,
+            factors: qualityFactors
+        };
+    }
+
+    evaluateRehabilitation(behavior) {
+        const positiveFactors = {
+            goodBehaviorStreak: this.calculateGoodBehaviorStreak(behavior),
+            positiveInteractions: this.countPositiveInteractions(behavior),
+            warningReduction: this.evaluateWarningTrend(behavior),
+            trustScoreImprovement: this.calculateTrustScoreImprovement(behavior)
+        };
+
+        return {
+            progress: Object.values(positiveFactors).reduce((a, b) => a + b, 0) / 4,
+            nextMilestone: this.calculateNextMilestone(behavior),
+            recommendations: this.generateRehabilitationRecommendations(behavior)
+        };
+    }
+
+    detectSpamWave(serverState) {
+        const messageRateThreshold = serverState.averageRate * 3;
+        const recentMessages = serverState.recentMessages || [];
+        const last5Minutes = recentMessages.filter(msg => 
+            Date.now() - msg.timestamp < 300000
+        );
+
+        return {
+            isSpamWave: last5Minutes.length > messageRateThreshold,
+            intensity: last5Minutes.length / messageRateThreshold,
+            participants: new Set(last5Minutes.map(msg => msg.authorId)).size
+        };
+    }
+
+    calculateGoodBehaviorStreak(behavior) {
+        const lastInfractionTime = behavior.recentInfractions[behavior.recentInfractions.length - 1]?.timestamp || 0;
+        const streakDays = (Date.now() - lastInfractionTime) / (24 * 60 * 60 * 1000);
+        return Math.min(1, streakDays / 30); // Normalisé sur 30 jours
+    }
+
+    calculateMessageFrequency(messages) {
+        const intervals = [];
+        for (let i = 1; i < messages.length; i++) {
+            intervals.push(messages[i].timestamp - messages[i-1].timestamp);
+        }
+        
+        return {
+            averageInterval: intervals.length ? intervals.reduce((a,b) => a + b, 0) / intervals.length : 0,
+            burstCount: intervals.filter(i => i < 1000).length, // Messages envoyés à moins d'1 seconde d'intervalle
+            normalizedRate: Math.min(1, intervals.length / 100)
+        };
+    }
+
+    analyzeReactions(messages) {
+        return {
+            positive: messages.filter(m => m.reactions?.cache.some(r => ['👍', '❤️', '✅'].includes(r.emoji.name))).length,
+            negative: messages.filter(m => m.reactions?.cache.some(r => ['👎', '❌', '🚫'].includes(r.emoji.name))).length,
+            total: messages.reduce((acc, m) => acc + (m.reactions?.cache.size || 0), 0)
+        };
+    }
+
+    categorizeMessages(messages) {
+        return {
+            text: messages.filter(m => !m.attachments.size && !m.embeds.length).length,
+            media: messages.filter(m => m.attachments.size > 0).length,
+            embeds: messages.filter(m => m.embeds.length > 0).length,
+            commands: messages.filter(m => m.content.startsWith('+')).length
+        };
+    }
+
+    analyzeInteractionStyle(messages) {
+        const style = {
+            mentions: messages.reduce((acc, m) => acc + (m.mentions.users.size || 0), 0),
+            emoji: messages.filter(m => /[\u{1F300}-\u{1F9FF}]/u.test(m.content)).length,
+            caps: messages.filter(m => m.content === m.content.toUpperCase()).length,
+            links: messages.filter(m => /https?:\/\/[^\s]+/.test(m.content)).length
+        };
+
+        return {
+            ...style,
+            spamLikelihood: this.calculateSpamLikelihood(style, messages.length)
+        };
+    }
+
+    calculateSpamLikelihood(style, totalMessages) {
+        if (totalMessages === 0) return 0;
+        
+        const spamIndicators = [
+            style.mentions / totalMessages > 0.5,
+            style.caps / totalMessages > 0.3,
+            style.links / totalMessages > 0.4
+        ];
+
+        return spamIndicators.filter(Boolean).length / spamIndicators.length;
+    }
+
+    evaluateContentQuality(message) {
+        const content = message.content;
+        const quality = {
+            length: Math.min(1, content.length / 500),
+            variety: new Set(content.split(' ')).size / content.split(' ').length,
+            formatting: this.checkFormatting(content),
+            relevance: this.checkRelevance(message)
+        };
+
+        return Object.values(quality).reduce((a, b) => a + b, 0) / 4;
+    }
+
+    checkFormatting(content) {
+        const checks = {
+            properPunctuation: /[.!?]$/.test(content),
+            properCapitalization: /^[A-Z]/.test(content),
+            noExcessiveRepetition: !/(.)\1{4,}/.test(content),
+            reasonableLength: content.length > 2 && content.length < 2000
+        };
+
+        return Object.values(checks).filter(Boolean).length / Object.keys(checks).length;
+    }
+
+    checkRelevance(message) {
+        const channel = message.channel;
+        const relevanceScore = {
+            matchesChannelTopic: channel.topic ? 
+                this.calculateSimilarity(message.content, channel.topic) : 0.5,
+            followsConversation: this.checkConversationFlow(message),
+            appropriateContent: this.checkContentAppropriateness(message)
+        };
+
+        return Object.values(relevanceScore).reduce((a, b) => a + b, 0) / 3;
+    }
+
+    calculateSimilarity(text1, text2) {
+        const words1 = new Set(text1.toLowerCase().split(/\s+/));
+        const words2 = new Set(text2.toLowerCase().split(/\s+/));
+        const intersection = new Set([...words1].filter(x => words2.has(x)));
+        const union = new Set([...words1, ...words2]);
+        
+        return intersection.size / union.size;
     }
 }
 
