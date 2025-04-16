@@ -665,6 +665,11 @@ class BotBrain {
     }
 
     evaluateServerRisk(serverState) {
+        // Protection contre les valeurs undefined
+        if (!serverState) {
+            return 0;
+        }
+
         let risk = 0;
 
         // Analyse avancée du serveur
@@ -674,17 +679,22 @@ class BotBrain {
             normal: { start: 6, end: 19, risk: 0.1 }
         };
 
-        const hour = serverState.timeOfDay;
+        const hour = serverState.timeOfDay || new Date().getHours();
         const currentTimeFactor = Object.entries(timeFactors).find(([_, period]) => 
             hour >= period.start && hour <= period.end
         )?.[1]?.risk || 0.1;
 
         risk += currentTimeFactor;
 
-        // Analyse de l'activité
-        if (serverState.messageRate > serverState.averageRate * 2) risk += 0.4; // Pics d'activité
-        if (serverState.recentIncidents > 3) risk += 0.3; // Incidents récents
-        if (serverState.uniqueUsers < 5) risk += 0.2; // Faible diversité d'utilisateurs
+        // Sécurisation des valeurs undefined
+        const messageRate = serverState.messageRate || 0;
+        const averageRate = serverState.averageRate || 1;
+        const recentIncidents = serverState.incidents?.length || 0;
+        const uniqueUsers = serverState.uniqueUsers || 0;
+
+        if (messageRate > averageRate * 2) risk += 0.4; // Pics d'activité
+        if (recentIncidents > 3) risk += 0.3; // Incidents récents
+        if (uniqueUsers < 5) risk += 0.2; // Faible diversité d'utilisateurs
 
         // Analyse des tendances
         if (this.detectRaidPattern(serverState)) risk += 0.5;
@@ -694,24 +704,24 @@ class BotBrain {
     }
 
     detectRaidPattern(serverState) {
-        const newMembers = serverState.recentJoins.filter(join => 
-            Date.now() - join.timestamp < 300000 // 5 dernières minutes
+        // Protection contre les valeurs undefined
+        if (!serverState || !serverState.recentJoins || !serverState.recentMessages) {
+            return false;
+        }
+
+        // Vérification que recentJoins et recentMessages sont des tableaux
+        const recentJoins = Array.isArray(serverState.recentJoins) ? serverState.recentJoins : [];
+        const recentMessages = Array.isArray(serverState.recentMessages) ? serverState.recentMessages : [];
+
+        const newMembers = recentJoins.filter(join => 
+            join && join.timestamp && (Date.now() - join.timestamp < 300000)
         ).length;
 
-        const suspiciousMessages = serverState.recentMessages.filter(msg =>
-            this.isSuspiciousMessage(msg)
+        const suspiciousMessages = recentMessages.filter(msg =>
+            msg && this.isSuspiciousMessage(msg)
         ).length;
 
         return (newMembers > 5 && suspiciousMessages > 10);
-    }
-
-    isSuspiciousMessage(msg) {
-        return (
-            msg.similar > 0.8 || // Messages très similaires
-            msg.mentions > 3 || // Beaucoup de mentions
-            msg.containsInvite || // Contient une invitation
-            msg.caps > 0.7 // Beaucoup de majuscules
-        );
     }
 
     detectRiskPatterns(patterns) {
