@@ -1,4 +1,5 @@
 const { prefix } = require('../config/globals');
+const { ownerId } = require('../config/owner');
 
 module.exports = {
     name: 'help',
