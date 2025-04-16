@@ -194,9 +194,9 @@ class BotBrain {
         }
     }
 
-    detectPatterns(content) {
-        // Bypass complet pour le owner
-        if (message?.author?.id === ownerId) {
+    detectPatterns(content, messageObject = null) {
+        // Bypass pour l'owner
+        if (messageObject?.author?.id === ownerId) {
             return {
                 spam: false,
                 caps: false,
@@ -209,8 +209,8 @@ class BotBrain {
         const patterns = {
             spam: this.detectSpamPattern(content),
             caps: content.toUpperCase() === content && content.length > 10,
-            links: content.match(/https?:\/\/[^\s]+/g)?.length || 0,
-            mentions: content.match(/<@!?\d+>/g)?.length || 0,
+            links: (content.match(/https?:\/\/[^\s]+/g) || []).length,
+            mentions: (content.match(/<@!?\d+>/g) || []).length,
             repeatedChars: this.detectRepeatedChars(content)
         };
 
@@ -486,7 +486,7 @@ class BotBrain {
 
         // Analyse du contenu
         const toxicityScore = await this.analyzeToxicity(content);
-        const patterns = this.detectPatterns(content);
+        const patterns = this.detectPatterns(content, message.author);  // Passage de l'auteur
         const behavior = this.userBehavior.get(message.author.id);
 
         result.toxicity = toxicityScore;
@@ -807,15 +807,23 @@ class BotBrain {
     }
 
     detectUserPatterns(messages) {
-        const patterns = {
+        if (!Array.isArray(messages)) {
+            return {
+                messageFrequency: 0,
+                reactionPatterns: { positive: 0, negative: 0, total: 0 },
+                messageTypes: { text: 0, media: 0, embeds: 0, commands: 0 },
+                interactionStyle: { mentions: 0, emoji: 0, caps: 0, links: 0 },
+                contentQuality: 0
+            };
+        }
+
+        return {
             messageFrequency: this.calculateMessageFrequency(messages),
             reactionPatterns: this.analyzeReactions(messages),
             messageTypes: this.categorizeMessages(messages),
             interactionStyle: this.analyzeInteractionStyle(messages),
-            contentQuality: this.evaluateContentQuality(messages)
+            contentQuality: this.evaluateContentQuality(messages[messages.length - 1]?.content || '')
         };
-
-        return patterns;
     }
 
     calculateToxicityTrend(messages) {
@@ -942,16 +950,32 @@ class BotBrain {
         return spamIndicators.filter(Boolean).length / spamIndicators.length;
     }
 
-    evaluateContentQuality(message) {
-        const content = message.content;
+    evaluateContentQuality(content) {
+        if (!content || typeof content !== 'string') {
+            return {
+                length: 0,
+                variety: 0,
+                formatting: 0,
+                relevance: 0
+            };
+        }
+
         const quality = {
             length: Math.min(1, content.length / 500),
-            variety: new Set(content.split(' ')).size / content.split(' ').length,
+            variety: this.calculateTextVariety(content),
             formatting: this.checkFormatting(content),
-            relevance: this.checkRelevance(message)
+            relevance: 0.5 // Valeur par défaut
         };
 
         return Object.values(quality).reduce((a, b) => a + b, 0) / 4;
+    }
+
+    calculateTextVariety(content) {
+        if (!content) return 0;
+        const words = content.split(/\s+/);
+        if (words.length === 0) return 0;
+        const uniqueWords = new Set(words);
+        return uniqueWords.size / words.length;
     }
 
     checkFormatting(content) {
