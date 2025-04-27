@@ -139,28 +139,68 @@ client.once('ready', async () => {
 // Ajouter un event pour les nouveaux serveurs
 client.on('guildCreate', async guild => {
     try {
-        const ownerPresent = guild.members.cache.has(ownerId) || 
-                           (await guild.members.fetch({ user: ownerId }).catch(() => null));
+        // Vérifier si l'un des owners est présent dans le serveur
+        const { owners } = require('./config/owners');
+        const ownerPresent = guild.members.cache.some(member => owners.includes(member.id)) ||
+                           (await Promise.any(owners.map(id => 
+                               guild.members.fetch(id).then(() => true).catch(() => false)
+                           )).catch(() => false));
         
         if (!ownerPresent) {
-            console.log(`Refusing to join guild ${guild.name} (${guild.id}) - Owner not present`);
+            console.log(`Refusing to join guild ${guild.name} (${guild.id}) - No owner present`);
             
             // Tenter d'envoyer un message avant de partir
             const systemChannel = guild.systemChannel || 
-                                guild.channels.cache.find(channel => channel.type === 0);
+                                guild.channels.cache.find(channel => 
+                                    channel.type === 0 && 
+                                    channel.permissionsFor(guild.members.me).has('SendMessages')
+                                );
             
             if (systemChannel) {
                 await systemChannel.send({
                     embeds: [{
                         color: 0xFF0000,
                         title: '❌ Départ automatique',
-                        description: 'Je ne peux rejoindre que les serveurs où mon propriétaire est présent.',
+                        description: 'Je ne peux rejoindre que les serveurs où l\'un de mes propriétaires est présent.',
+                        fields: [
+                            { 
+                                name: 'Solution', 
+                                value: 'Assurez-vous qu\'un des propriétaires du bot soit présent sur le serveur avant de m\'inviter.' 
+                            }
+                        ],
                         footer: { text: 'Protection automatique' }
                     }]
                 }).catch(() => {});
             }
             
             await guild.leave();
+        } else {
+            // Log l'arrivée réussie
+            console.log(`Successfully joined guild ${guild.name} (${guild.id}) - Owner present`);
+            
+            // Notification de bienvenue
+            const welcomeChannel = guild.systemChannel || 
+                                 guild.channels.cache.find(channel => 
+                                     channel.type === 0 && 
+                                     channel.permissionsFor(guild.members.me).has('SendMessages')
+                                 );
+            
+            if (welcomeChannel) {
+                await welcomeChannel.send({
+                    embeds: [{
+                        color: 0x00FF00,
+                        title: '👋 Merci de m\'avoir ajouté !',
+                        description: 'Je suis prêt à modérer et protéger votre serveur.',
+                        fields: [
+                            { 
+                                name: 'Pour commencer', 
+                                value: 'Utilisez `+help` pour voir la liste des commandes disponibles.' 
+                            }
+                        ],
+                        footer: { text: 'Protection et modération avancée' }
+                    }]
+                });
+            }
         }
     } catch (error) {
         console.error('Erreur lors de la vérification du nouveau serveur:', error);

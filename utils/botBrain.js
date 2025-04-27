@@ -314,9 +314,11 @@ class BotBrain {
 
     async analyzeUserBehavior(message) {
         const userId = message.author.id;
+        const owners = require('../config/owners');
         
-        // Protection absolue de l'owner
-        if (message.author.id === this.ownerId) {
+        // Protection basée sur le niveau d'owner
+        const ownerLevel = owners.getOwnerLevel(userId);
+        if (ownerLevel > 0) {
             return {
                 messageCount: 0,
                 warningCount: 0,
@@ -326,8 +328,9 @@ class BotBrain {
                 recentInfractions: [],
                 trustScore: 100,
                 isOwner: true,
+                ownerLevel: ownerLevel,
                 immune: true,
-                bypassAll: true
+                bypassAll: ownerLevel >= 2
             };
         }
 
