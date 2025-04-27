@@ -163,23 +163,31 @@ client.once('ready', async () => {
 // Ajouter un event pour les nouveaux serveurs
 client.on('guildCreate', async guild => {
     try {
-        // Vérifier si l'un des owners est présent dans le serveur
-        const { owners } = require('./config/owners');
-        const ownerPresent = guild.members.cache.some(member => owners.includes(member.id)) ||
-                           (await Promise.any(owners.map(id => 
-                               guild.members.fetch(id).then(() => true).catch(() => false)
-                           )).catch(() => false));
-        
+        // Charger les IDs des owners
+        const { ownerLevel3, ownerLevel2, ownerLevel1 } = require('./config/owners');
+        const allOwners = [...ownerLevel3, ...ownerLevel2, ...ownerLevel1];
+
+        // Vérifier si un owner est présent dans le serveur
+        const ownerPresent = await Promise.any(
+            allOwners.map(async id => {
+                try {
+                    const member = await guild.members.fetch(id);
+                    return !!member;
+                } catch {
+                    return false;
+                }
+            })
+        ).catch(() => false);
+
         if (!ownerPresent) {
             console.log(`Refusing to join guild ${guild.name} (${guild.id}) - No owner present`);
-            
-            // Tenter d'envoyer un message avant de partir
+
+            // Tenter d'envoyer un message avant de quitter
             const systemChannel = guild.systemChannel || 
-                                guild.channels.cache.find(channel => 
-                                    channel.type === 0 && 
-                                    channel.permissionsFor(guild.members.me).has('SendMessages')
-                                );
-            
+                                  guild.channels.cache.find(channel => 
+                                      channel.permissionsFor(guild.members.me).has('SendMessages')
+                                  );
+
             if (systemChannel) {
                 await systemChannel.send({
                     embeds: [{
@@ -196,19 +204,17 @@ client.on('guildCreate', async guild => {
                     }]
                 }).catch(() => {});
             }
-            
+
             await guild.leave();
         } else {
-            // Log l'arrivée réussie
             console.log(`Successfully joined guild ${guild.name} (${guild.id}) - Owner present`);
-            
+
             // Notification de bienvenue
             const welcomeChannel = guild.systemChannel || 
-                                 guild.channels.cache.find(channel => 
-                                     channel.type === 0 && 
-                                     channel.permissionsFor(guild.members.me).has('SendMessages')
-                                 );
-            
+                                   guild.channels.cache.find(channel => 
+                                       channel.permissionsFor(guild.members.me).has('SendMessages')
+                                   );
+
             if (welcomeChannel) {
                 await welcomeChannel.send({
                     embeds: [{
