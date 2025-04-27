@@ -1,6 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { prefix } = require('../config/globals');
-const { ownerId } = require('../config/owner');
+const commandManager = require('../utils/commandManager');
 
 module.exports = {
     name: 'helpall',
@@ -8,44 +8,21 @@ module.exports = {
     usage: '+helpall [catégorie]',
     permissions: 'Aucune',
     async execute(message, args) {
-        const categories = {
-            "🛡️ Modération": [
-                { name: "ban", extraInfo: "Options: --silent, --del [jours]" },
-                { name: "kick", extraInfo: "Confirmation requise" },
-                { name: "mute", extraInfo: "Système progressif, options: --notify, --silent" },
-                { name: "warn", extraInfo: "Système d'avertissements progressifs" },
-                { name: "clear", extraInfo: "Options: --bots, --users, --from @user" }
-            ],
-            "⚙️ Configuration": [
-                { name: "anti-raid", extraInfo: "Protection avancée contre les raids" },
-                { name: "raid-mode", extraInfo: "Options: --strict, --lockdown" },
-                { name: "settings", extraInfo: "Configuration du bot" }
-            ],
-            "🔒 Owner Only": [
-                { name: "eval", extraInfo: "Exécution de code JavaScript" },
-                { name: "maintenance", extraInfo: "Mode maintenance" }
-            ]
-        };
+        const categories = commandManager.getCommandsByCategory();
+        const allCommands = commandManager.getAllCommands();
 
         const embeds = Object.entries(categories)
-            .filter(([category, commands]) => {
-                if (category === "🔒 Owner Only" && message.author.id !== ownerId) {
-                    return false;
-                }
-                return commands.length > 0;
-            })
             .map(([category, commands]) => ({
                 color: 0x0099ff,
                 title: `📚 Guide Détaillé - ${category}`,
                 description: 'Description détaillée des commandes :',
-                fields: commands.map(cmd => {
-                    const command = message.client.commands.get(cmd.name);
+                fields: commands.map(cmdName => {
+                    const command = allCommands.get(cmdName);
                     return {
-                        name: `${prefix}${cmd.name}`,
+                        name: `${prefix}${cmdName}`,
                         value: [
                             `📝 Description: ${command?.description || 'Pas de description'}`,
-                            `🔧 Usage: \`${command?.usage || prefix + cmd.name}\``,
-                            `🛠️ Info: ${cmd.extraInfo}`,
+                            `🔧 Usage: \`${command?.usage || prefix + cmdName}\``,
                             `👮 Permissions: ${command?.permissions || 'Aucune'}`
                         ].join('\n')
                     };

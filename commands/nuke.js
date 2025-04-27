@@ -2,49 +2,42 @@ const { PermissionsBitField } = require('discord.js');
 
 module.exports = {
     name: 'nuke',
-    description: 'Recrée le canal à zéro (purge complète)',
-    usage: '+nuke [raison]',
-    permissions: 'Administrator',
+    description: 'Recrée un salon à zéro (supprime tout l\'historique)',
+    usage: '+nuke',
+    permissions: 'ManageChannels',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Cette commande nécessite les permissions Administrateur.');
+        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+            return message.reply('❌ Vous n\'avez pas la permission de gérer les salons.');
         }
 
-        const confirmEmbed = {
-            color: 0xFF0000,
-            title: '⚠️ Confirmation de nuke',
-            description: 'Cette action va supprimer et recréer le canal. Êtes-vous sûr?\nRépondez par `oui` pour confirmer.'
-        };
-
-        const confirm = await message.reply({ embeds: [confirmEmbed] });
+        // Demande de confirmation
+        const confirm = await message.reply('⚠️ Êtes-vous sûr de vouloir nuker ce salon ? Cette action est irréversible. (oui/non)');
         
         try {
-            const collected = await message.channel.awaitMessages({
-                filter: m => m.author.id === message.author.id && ['oui', 'non'].includes(m.content.toLowerCase()),
-                max: 1,
-                time: 30000
-            });
+            const filter = m => m.author.id === message.author.id && ['oui', 'non'].includes(m.content.toLowerCase());
+            const collected = await message.channel.awaitMessages({ filter, max: 1, time: 30000 });
 
-            if (!collected.size || collected.first().content.toLowerCase() !== 'oui') {
-                return message.reply('❌ Nuke annulé.');
+            if (!collected.size || collected.first().content.toLowerCase() === 'non') {
+                return message.reply('❌ Opération annulée.');
             }
 
             const position = message.channel.position;
             const newChannel = await message.channel.clone();
             await message.channel.delete();
             await newChannel.setPosition(position);
-
-            const nukeEmbed = {
-                color: 0x00FF00,
-                title: '💥 Canal recréé',
-                description: args.join(' ') || 'Aucune raison fournie',
-                footer: { text: `Action par ${message.author.tag}` }
-            };
-
-            await newChannel.send({ embeds: [nukeEmbed] });
+            
+            newChannel.send({
+                embeds: [{
+                    color: 0xFF0000,
+                    title: '💥 Canal recréé',
+                    description: 'Ce salon a été complètement nettoyé.',
+                    footer: { text: `Action effectuée par ${message.author.tag}` },
+                    timestamp: new Date()
+                }]
+            });
         } catch (error) {
             console.error('Erreur nuke:', error);
-            message.reply('❌ Une erreur est survenue lors du nuke.');
+            message.reply('❌ Une erreur est survenue.');
         }
     }
 };

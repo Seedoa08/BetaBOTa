@@ -22,26 +22,45 @@ const client = new Client({
 
 const botBrain = new BotBrain();
 
-// Ajouter cette ligne pour stocker les messages supprimés
+// Système de snipe amélioré
 client.snipes = new Collection();
 
-// Ajouter cet événement pour capturer les messages supprimés
 client.on('messageDelete', message => {
     if (message.author.bot) return;
 
-    client.snipes.set(message.channel.id, {
+    const snipe = {
         content: message.content,
         author: message.author,
+        channel: message.channel,
+        timestamp: Date.now(),
         image: message.attachments.first()?.proxyURL || null,
-        date: new Date().toLocaleString()
-    });
+        attachments: [...message.attachments.values()].map(a => ({
+            name: a.name,
+            url: a.proxyURL
+        })),
+        reference: message.reference ? {
+            author: message.reference.author,
+            url: `https://discord.com/channels/${message.guild.id}/${message.channel.id}/${message.reference.messageId}`
+        } : null,
+        embeds: message.embeds
+    };
 
-    // Supprimer le message snipe après 5 minutes
+    const channelSnipes = client.snipes.get(message.channel.id) || [];
+    channelSnipes.unshift(snipe);
+    // Garder les 10 derniers messages par salon
+    if (channelSnipes.length > 10) channelSnipes.pop();
+    client.snipes.set(message.channel.id, channelSnipes);
+
+    // Supprimer après 1 heure
     setTimeout(() => {
-        if (client.snipes.get(message.channel.id)?.content === message.content) {
+        const currentSnipes = client.snipes.get(message.channel.id) || [];
+        const filteredSnipes = currentSnipes.filter(s => s.timestamp !== snipe.timestamp);
+        if (filteredSnipes.length > 0) {
+            client.snipes.set(message.channel.id, filteredSnipes);
+        } else {
             client.snipes.delete(message.channel.id);
         }
-    }, 300000); // 5 minutes
+    }, 3600000);
 });
 
 // Système de logs avancé avec rotation

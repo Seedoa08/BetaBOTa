@@ -1,49 +1,29 @@
 const { PermissionsBitField } = require('discord.js');
-const ms = require('ms');
 
 module.exports = {
     name: 'slowmode',
-    description: 'Configure le mode lent du canal',
-    usage: '+slowmode [durée/off] [raison]',
+    description: 'Configure le mode lent dans un salon',
+    usage: '+slowmode <durée en secondes/off>',
     permissions: 'ManageChannels',
-    variables: [
-        { name: '[durée]', description: 'Durée du mode lent (ex: 5s, 10m, 1h) ou "off"' },
-        { name: '[raison]', description: 'Raison de l\'activation du mode lent' }
-    ],
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les canaux.');
+            return message.reply('❌ Vous n\'avez pas la permission de gérer les salons.');
         }
 
-        const duration = args[0]?.toLowerCase();
-        if (!duration) {
-            return message.reply('✨ Mode lent actuel: ' + (message.channel.rateLimitPerUser || 'désactivé'));
+        const duration = args[0]?.toLowerCase() === 'off' ? 0 : parseInt(args[0]);
+        if ((isNaN(duration) && args[0] !== 'off') || duration < 0 || duration > 21600) {
+            return message.reply('❌ Durée invalide. Utilisez un nombre entre 0 et 21600 secondes, ou "off".');
         }
 
-        if (duration === 'off') {
-            await message.channel.setRateLimitPerUser(0, 'Mode lent désactivé');
-            return message.reply('✅ Mode lent désactivé.');
-        }
-
-        const seconds = Math.min(21600, ms(duration) / 1000);
-        if (isNaN(seconds)) {
-            return message.reply('❌ Durée invalide. Utilisez un format valide (ex: 5s, 10m, 1h).');
-        }
-
-        const reason = args.slice(1).join(' ') || 'Aucune raison fournie';
-        
         try {
-            await message.channel.setRateLimitPerUser(seconds, reason);
-            const embed = {
-                color: 0x0099ff,
-                title: '⏰ Mode lent activé',
-                description: `Les membres doivent maintenant attendre ${ms(seconds * 1000, { long: true })} entre chaque message.`,
-                footer: { text: `Modérateur: ${message.author.tag}` }
-            };
-            message.channel.send({ embeds: [embed] });
+            await message.channel.setRateLimitPerUser(duration);
+            if (duration === 0) {
+                return message.reply('✅ Mode lent désactivé.');
+            }
+            return message.reply(`✅ Mode lent configuré sur ${duration} secondes.`);
         } catch (error) {
-            console.error('Erreur lors de la configuration du mode lent:', error);
-            message.reply('❌ Une erreur est survenue lors de la configuration du mode lent.');
+            console.error('Erreur slowmode:', error);
+            return message.reply('❌ Une erreur est survenue.');
         }
     }
 };

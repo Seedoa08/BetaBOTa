@@ -5,61 +5,48 @@ module.exports = {
     description: 'Gère les rôles des membres',
     usage: '+role <add/remove/info> @utilisateur @role',
     permissions: 'ManageRoles',
-    variables: [
-        { name: 'add', description: 'Ajoute un rôle à un utilisateur' },
-        { name: 'remove', description: 'Retire un rôle à un utilisateur' },
-        { name: 'info', description: 'Affiche les informations sur un rôle' }
-    ],
     async execute(message, args) {
         if (!message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
             return message.reply('❌ Vous n\'avez pas la permission de gérer les rôles.');
         }
 
-        const subCommand = args[0]?.toLowerCase();
+        const action = args[0]?.toLowerCase();
         const member = message.mentions.members.first();
         const role = message.mentions.roles.first();
 
-        if (!member || !role) {
-            return message.reply('❌ Vous devez mentionner un utilisateur et un rôle.');
+        if (!['add', 'remove', 'info'].includes(action)) {
+            return message.reply('❌ Action invalide. Utilisez `add`, `remove` ou `info`.');
         }
 
-        switch (subCommand) {
-            case 'add':
-                if (member.roles.cache.has(role.id)) {
-                    return message.reply('❌ Cet utilisateur a déjà ce rôle.');
-                }
+        if (!member) {
+            return message.reply('❌ Mentionnez un utilisateur.');
+        }
 
+        switch (action) {
+            case 'add':
+                if (!role) return message.reply('❌ Mentionnez un rôle à ajouter.');
                 await member.roles.add(role);
-                message.reply(`✅ Le rôle ${role} a été ajouté à ${member}.`);
-                break;
+                return message.reply(`✅ Rôle ${role.name} ajouté à ${member.user.tag}`);
 
             case 'remove':
-                if (!member.roles.cache.has(role.id)) {
-                    return message.reply('❌ Cet utilisateur n\'a pas ce rôle.');
-                }
-
+                if (!role) return message.reply('❌ Mentionnez un rôle à retirer.');
                 await member.roles.remove(role);
-                message.reply(`✅ Le rôle ${role} a été retiré à ${member}.`);
-                break;
+                return message.reply(`✅ Rôle ${role.name} retiré de ${member.user.tag}`);
 
             case 'info':
-                const roleEmbed = {
-                    color: role.color,
-                    title: `ℹ️ Informations sur le rôle ${role.name}`,
-                    fields: [
-                        { name: 'ID', value: role.id, inline: true },
-                        { name: 'Couleur', value: role.hexColor, inline: true },
-                        { name: 'Position', value: `${role.position}`, inline: true },
-                        { name: 'Mentionnable', value: role.mentionable ? 'Oui' : 'Non', inline: true },
-                        { name: 'Membres', value: `${role.members.size}`, inline: true },
-                        { name: 'Créé le', value: `<t:${Math.floor(role.createdTimestamp / 1000)}:F>`, inline: true }
-                    ]
-                };
-                message.reply({ embeds: [roleEmbed] });
-                break;
+                const roles = member.roles.cache
+                    .filter(r => r.id !== message.guild.id)
+                    .sort((a, b) => b.position - a.position)
+                    .map(r => `\`${r.name}\``)
+                    .join(', ');
 
-            default:
-                message.reply('❌ Usage: `+role <add/remove/info> @utilisateur @role`');
+                const embed = {
+                    color: member.displayColor || 0x0099ff,
+                    title: `Rôles de ${member.user.tag}`,
+                    description: roles || 'Aucun rôle',
+                    footer: { text: `${member.roles.cache.size - 1} rôles` }
+                };
+                return message.reply({ embeds: [embed] });
         }
     }
 };
