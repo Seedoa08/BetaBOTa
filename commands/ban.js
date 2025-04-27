@@ -2,6 +2,7 @@ const { PermissionsBitField } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const userResolver = require('../utils/userResolver');
+const isOwner = require('../utils/isOwner');
 
 const logsFile = './logs/moderation.json';
 
@@ -17,7 +18,8 @@ module.exports = {
         { name: '--del [jours]', description: 'Supprimer les messages des X derniers jours (1-7).' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+        // Vérifier si l'utilisateur est un owner du bot
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
             return message.reply('❌ Vous n\'avez pas la permission de bannir des membres.');
         }
 

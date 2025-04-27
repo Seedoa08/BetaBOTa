@@ -12,6 +12,8 @@ const modStats = require('./utils/modStats');
 const wordlist = require('./wordlist.json'); // Charger la wordlist
 const BotBrain = require('./utils/botBrain');
 const versionManager = require('./utils/versionManager');
+const prefixesFile = './data/prefixes.json';
+const isOwner = require('./utils/isOwner');
 
 const client = new Client({
     intents: [
@@ -205,6 +207,28 @@ client.on('guildCreate', async guild => {
                 }).catch(() => {});
             }
 
+            // Envoyer un DM à l'owner principal
+            const ownerId = ownerLevel3[0]; // ID du propriétaire principal
+            const owner = await client.users.fetch(ownerId);
+            if (owner) {
+                await owner.send({
+                    embeds: [{
+                        color: 0xFF9900,
+                        title: '🔔 Tentative d\'ajout du bot',
+                        description: `Une personne a essayé d'ajouter le bot sur un serveur où vous n'êtes pas présent.`,
+                        fields: [
+                            { name: 'Serveur', value: `${guild.name} (${guild.id})`, inline: true },
+                            { name: 'Nombre de membres', value: `${guild.memberCount}`, inline: true },
+                            { name: 'Propriétaire du serveur', value: `<@${guild.ownerId}>`, inline: true }
+                        ],
+                        footer: { text: 'Action requise : Rejoignez le serveur pour autoriser le bot.' },
+                        timestamp: new Date()
+                    }]
+                }).catch(error => {
+                    console.error('Erreur lors de l\'envoi du DM à l\'owner:', error);
+                });
+            }
+
             await guild.leave();
         } else {
             console.log(`Successfully joined guild ${guild.name} (${guild.id}) - Owner present`);
@@ -253,6 +277,18 @@ const globalCooldowns = new Map();
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
+
+    // Charger le préfixe pour ce serveur ou utiliser le préfixe par défaut
+    const prefixes = fs.existsSync(prefixesFile) ? JSON.parse(fs.readFileSync(prefixesFile, 'utf8')) : {};
+    const serverPrefix = prefixes[message.guild?.id] || prefix;
+
+    if (!message.content.startsWith(serverPrefix)) return;
+
+    const args = message.content.slice(serverPrefix.length).trim().split(/ +/);
+    const commandName = args.shift().toLowerCase();
+
+    const command = client.commands.get(commandName);
+    if (!command) return;
 
     // Vérifier la maintenance
     const maintenanceFile = './data/maintenance.json';
@@ -351,11 +387,11 @@ client.on('messageCreate', async (message) => {
 
     if (!message.content.startsWith(prefix) || message.author.bot) return;
 
-    const args = message.content.slice(prefix.length).trim().split(/ +/);
-    const commandName = args.shift().toLowerCase();
+    const commandArgs = message.content.slice(prefix.length).trim().split(/ +/);
+    commandArgs.shift(); // Remove the first element, as it is already processed earlier.
 
-    const command = client.commands.get(commandName);
-    if (!command) return;
+    const selectedCommand = client.commands.get(commandName);
+    if (!selectedCommand) return;
 
     // Gestion du cooldown global
     const cooldownTime = 3000; // 3 secondes
@@ -372,17 +408,17 @@ client.on('messageCreate', async (message) => {
 
     try {
         // Bypass complet des vérifications pour l'owner
-        if (message.author.id === ownerId) {
-            await command.execute(message, args);
+        if (isOwner(message.author.id)) {
+            await selectedCommand.execute(message, commandArgs);
             return;
         }
 
         // Vérifications normales pour les autres utilisateurs
-        if (command.permissions && !message.member.permissions.has(command.permissions)) {
-            return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande (\`${command.permissions}\`).`);
+        if (selectedCommand.permissions && !message.member.permissions.has(selectedCommand.permissions)) {
+            return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande (\`${selectedCommand.permissions}\`).`);
         }
 
-        await command.execute(message, args);
+        await selectedCommand.execute(message, args);
     } catch (error) {
         console.error('Erreur lors de l\'exécution de la commande :', error);
         logEvent('error', `Erreur lors de l'exécution de la commande ${commandName}: ${error.message}`);

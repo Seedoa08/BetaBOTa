@@ -1,50 +1,50 @@
 const { PermissionsBitField } = require('discord.js');
-const { checkPermissions } = require('../utils/permissions');
 
 module.exports = {
     name: 'rank',
-    description: 'Ajoute un rôle à un utilisateur',
-    usage: '+rank @role @utilisateur',
+    description: 'Affiche les membres ayant un rôle spécifique.',
+    usage: '+rank @role | <roleID>',
     permissions: 'ManageRoles',
     variables: [
-        { name: '@role', description: 'Le rôle à ajouter' },
-        { name: '@utilisateur', description: 'L\'utilisateur qui recevra le rôle' }
+        { name: '@role | <roleID>', description: 'Mention ou ID du rôle pour afficher ses membres.' }
     ],
     async execute(message, args) {
-        if (!checkPermissions(message, PermissionsBitField.Flags.ManageRoles)) {
+        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
             return message.reply('❌ Vous n\'avez pas la permission de gérer les rôles.');
         }
 
-        const role = message.mentions.roles.first();
-        const user = message.mentions.users.first();
-
-        if (!role || !user) {
-            return message.reply('❌ Usage: `+rank @role @utilisateur`');
+        const roleIdentifier = args[0];
+        if (!roleIdentifier) {
+            return message.reply('❌ Vous devez mentionner un rôle ou fournir son ID.');
         }
 
-        const member = message.guild.members.cache.get(user.id);
-        if (!member) {
-            return message.reply('❌ Cet utilisateur n\'est pas dans le serveur.');
+        // Récupérer le rôle par mention ou ID
+        const role = message.guild.roles.cache.get(roleIdentifier.replace(/[<@&>]/g, '')) || 
+                     message.guild.roles.cache.find(r => r.name.toLowerCase() === roleIdentifier.toLowerCase());
+
+        if (!role) {
+            return message.reply('❌ Rôle introuvable. Assurez-vous que le rôle existe et que vous avez fourni une mention ou un ID valide.');
         }
 
-        // Vérifier si le rôle est supérieur à celui de la personne qui fait la commande
-        if (role.position >= message.member.roles.highest.position) {
-            return message.reply('❌ Vous ne pouvez pas ajouter un rôle supérieur ou égal au vôtre.');
-        }
+        // Récupérer les membres ayant ce rôle
+        const membersWithRole = role.members.map(member => `${member.user.tag} (${member.id})`).join('\n') || 'Aucun membre avec ce rôle.';
+
+        const rankEmbed = {
+            color: role.color || 0x0099ff,
+            title: `📋 Membres avec le rôle ${role.name}`,
+            description: membersWithRole,
+            footer: {
+                text: `ID du rôle: ${role.id}`,
+                icon_url: message.guild.iconURL({ dynamic: true })
+            },
+            timestamp: new Date()
+        };
 
         try {
-            await member.roles.add(role);
-            message.reply(`✅ Le rôle ${role} a été ajouté à ${user.tag}`);
+            await message.channel.send({ embeds: [rankEmbed] });
         } catch (error) {
-            // Utiliser le nouveau système de gestion des erreurs
-            await message.client.errorHandler.handleError(error, 'commande rank');
-            
-            // Message d'erreur plus spécifique pour l'utilisateur
-            if (error.code === 50013) {
-                message.reply('❌ Je n\'ai pas les permissions nécessaires pour ajouter ce rôle. Le rôle doit être plus bas que mon rôle le plus haut.');
-            } else {
-                message.reply('❌ Une erreur est survenue lors de l\'ajout du rôle.');
-            }
+            console.error('Erreur dans la commande rank:', error);
+            message.reply('❌ Une erreur est survenue lors de l\'exécution de la commande.');
         }
     }
 };

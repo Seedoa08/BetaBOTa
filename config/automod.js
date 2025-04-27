@@ -21,15 +21,15 @@ module.exports = {
         insults: {
             french: [
                 // Insultes françaises
-                "connard", "connasse", "pute", "salope", "batard", "fdp", "ntm", "tg", "ta gueule",
-                "enculé", "enculer", "merde", "bite", "pd", "nique", "niquer", "putain"
+                 "pute", "salope", "fdp", "ntm", "ta gueule",
+                "enculé", "enculer", "pd", "nique", "niquer", "salope", "sale pute",
             ],
             english: [
                 // Common English insults
                 "fuck", "fucking", "bitch", "asshole", "cunt", "dick", "pussy", "whore", "slut",
-                "retard", "idiot", "bastard", "motherfucker", "stfu", "kys", "kys", "gtfo",
+                "retard", "idiot", "bastard", "motherfucker", "stfu",
                 // Racist/Discriminatory terms
-                "nigger", "nigga", "faggot", "fag", "dyke", "tranny",
+                "nigger", "nigga", "faggot", "fag",
                 // Mild insults
                 "moron", "stupid", "dumb", "idiot", "trash"
             ],

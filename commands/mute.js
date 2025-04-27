@@ -2,7 +2,8 @@ const { PermissionsBitField } = require('discord.js');
 const ms = require('ms');
 const fs = require('fs');
 const userResolver = require('../utils/userResolver');
-const isOwner = require('../utils/ownerCheck');
+const { ownerLevel3 } = require('../config/owners'); // Importer les owners
+const isOwner = require('../utils/isOwner');
 
 const muteHistoryFile = './muteHistory.json';
 const logsFile = './logs/moderation.json';
@@ -25,7 +26,16 @@ module.exports = {
         { name: '--silent', description: 'Mute silencieusement' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+        // Vérifier si le bot a la permission de mute
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+            return message.reply('❌ Je n\'ai pas la permission de mute des membres. Veuillez vérifier mes permissions.');
+        }
+
+        // Vérifier si l'utilisateur est un owner du bot
+        const isBotOwner = ownerLevel3.includes(message.author.id);
+
+        // Vérifier les permissions uniquement si l'utilisateur n'est pas un owner
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
             return message.reply('❌ Vous n\'avez pas la permission de mute des membres.');
         }
 
@@ -37,11 +47,6 @@ module.exports = {
         const user = await userResolver(message.client, userIdentifier);
         if (!user) {
             return message.reply('❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.');
-        }
-
-        // Protection de l'owner
-        if (isOwner(user.id)) {
-            return message.reply('❌ Vous ne pouvez pas mute le propriétaire du bot.');
         }
 
         if (user.id === message.guild.ownerId) {
@@ -64,8 +69,9 @@ module.exports = {
             return message.reply('❌ Cet utilisateur n\'est pas dans le serveur.');
         }
 
-        if (!member.moderatable || member.roles.highest.position >= message.member.roles.highest.position) {
-            return message.reply('❌ Vous ne pouvez pas mute cet utilisateur. Vérifiez vos permissions ou le rôle de l\'utilisateur.');
+        // Vérifier si le bot peut mute cet utilisateur
+        if (!member.moderatable || member.roles.highest.position >= message.guild.members.me.roles.highest.position) {
+            return message.reply('❌ Je ne peux pas mute cet utilisateur. Vérifiez que mon rôle est au-dessus de celui de l\'utilisateur.');
         }
 
         if (member.communicationDisabledUntilTimestamp && member.communicationDisabledUntilTimestamp > Date.now()) {

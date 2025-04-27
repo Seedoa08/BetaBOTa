@@ -1,3 +1,3 @@
 module.exports = {
-    prefix: process.env.BOT_PREFIX || '+'
+    prefix: '+', // Préfixe par défaut
 };
