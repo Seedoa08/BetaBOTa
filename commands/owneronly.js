@@ -1,5 +1,6 @@
 const fs = require('fs');
 const authorizedUsersFile = './authorizedUsers.json';
+const { ownerLevel3 } = require('../config/owners'); // Assurez-vous que le fichier owners.js exporte correctement ownerLevel3
 
 module.exports = {
     name: 'owneronly',
@@ -12,9 +13,7 @@ module.exports = {
         { name: 'list', description: 'Affiche la liste des utilisateurs autorisés' }
     ],
     async execute(message, args) {
-        const { owners } = require('../config/owners');
-
-        if (!owners.includes(message.author.id)) {
+        if (!ownerLevel3.includes(message.author.id)) {
             return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
 

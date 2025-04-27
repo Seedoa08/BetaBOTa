@@ -11,6 +11,7 @@ const SanctionReminder = require('./utils/sanctionReminder');
 const modStats = require('./utils/modStats');
 const wordlist = require('./wordlist.json'); // Charger la wordlist
 const BotBrain = require('./utils/botBrain');
+const versionManager = require('./utils/versionManager');
 
 const client = new Client({
     intents: [
@@ -102,6 +103,10 @@ client.once('ready', async () => {
     if (isInitialized) return;
     isInitialized = true;
 
+    // Incrémenter la version au démarrage
+    const newVersion = versionManager.incrementVersion();
+    console.log(`Version actuelle: ${newVersion}`);
+
     try {
         // Vérifier tous les serveurs pour la présence de l'owner
         client.guilds.cache.forEach(async guild => {
@@ -127,7 +132,7 @@ client.once('ready', async () => {
                     { name: 'Status', value: 'Tous les systèmes sont opérationnels', inline: true },
                     { name: 'Serveurs', value: `${client.guilds.cache.size} serveurs`, inline: true },
                     { name: 'Utilisateurs', value: `${client.users.cache.size} utilisateurs`, inline: true },
-                    { name: 'Version', value: require('./package.json').version, inline: true },
+                    { name: 'Version', value: newVersion, inline: true },
                     { name: 'Uptime', value: '0s', inline: true }
                 ],
                 footer: { text: `Node.js ${process.version}` },
