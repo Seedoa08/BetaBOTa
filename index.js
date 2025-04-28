@@ -1,8 +1,7 @@
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { prefix } = require('./config.json');
-const token = 'MTM0OTc4NTYwMzMxMDYxNjYwNw.G7cV1k.Rk-cICyfno2cpb2qiGbEWYZ2jtYg6zkViUU1kI';
+const { prefix, token } = require('./config.json'); // Charger le token depuis config.json
 const isOwner = require('./utils/isOwner'); // Ajouter cet import
 
 // Créer le client Discord.js
