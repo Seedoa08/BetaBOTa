@@ -263,13 +263,21 @@ client.on('guildCreate', async guild => {
 
 // Gestion des erreurs globales
 process.on('unhandledRejection', (error) => {
-    console.error('Erreur non gérée :', error);
-    logEvent('error', `Erreur non gérée : ${error.message}`);
+    const errorInfo = errorHandler.handleError(error, null, null);
+    console.error('Erreur non gérée :', errorInfo);
 });
 
 process.on('uncaughtException', (error) => {
-    console.error('Exception non gérée :', error);
-    logEvent('error', `Exception non gérée : ${error.message}`);
+    const errorInfo = errorHandler.handleError(error, null, null);
+    console.error('Exception non gérée :', errorInfo);
+    // Redémarrage propre du bot si nécessaire
+    process.exit(1);
+});
+
+// Gestion des erreurs spécifiques au client Discord
+client.on('error', (error) => {
+    console.error('Erreur client Discord :', error);
+    logEvent('error', `Erreur client Discord : ${error.message}`);
 });
 
 // Système de cooldown global
@@ -285,144 +293,46 @@ client.on('messageCreate', async (message) => {
     if (!message.content.startsWith(serverPrefix)) return;
 
     const args = message.content.slice(serverPrefix.length).trim().split(/ +/);
-    const commandName = args.shift().toLowerCase();
+    const commandName = args.shift().toLowerCase();er
 
     const command = client.commands.get(commandName);
     if (!command) return;
 
-    // Vérifier la maintenance
-    const maintenanceFile = './data/maintenance.json';
-    if (fs.existsSync(maintenanceFile)) {
-        const maintenance = JSON.parse(fs.readFileSync(maintenanceFile));
-        if (maintenance.active && !owners.includes(message.author.id)) {
-            // Autoriser uniquement les commandes essentielles en maintenance
-            const allowedCommands = ['help', 'ping', 'maintenance'];
-            const command = message.content.slice(prefix.length).split(' ')[0];
-            if (!allowedCommands.includes(command)) {
-                return message.reply('⚠️ Le bot est actuellement en maintenance. Seules les commandes essentielles sont disponibles.');
-            }
-        }
-    }
-
-    // Analyse comportementale avancée
-    const behavior = await botBrain.analyzeUserBehavior(message);
-    
-    // Log des comportements suspects
-    if (behavior.trustScore < 70) {
-        logEvent('suspicious', `Comportement suspect de ${message.author.tag} (Trust Score: ${behavior.trustScore})`);
-    }
-
-    // Vérification des mots interdits et analyse contextuelle
-    const analysis = await botBrain.analyzeMessage(message);
-    if (analysis.shouldAct) {
-        await botBrain.handleViolation(message, analysis);
-        return;
-    }
-
-    // Auto-modération et apprentissage
-    await botBrain.autoModerate(message);
-    
-    // Apprentissage et analyse du contexte
-    botBrain.learn(message);
-    
-    // Si le message mentionne le bot, générer une réponse
-    if (message.mentions.has(client.user)) {
-        const response = botBrain.generateResponse(message);
-        if (response.content) {
-            await message.reply(response.content);
-        }
-    }
-
-    // Vérification des mots interdits et limites
-    const messageContent = message.content.toLowerCase();
-    const forbiddenWords = wordlist.forbidden || [];
-    const warningWords = wordlist.warning || [];
-
-    // Vérifier les mots strictement interdits
-    const containsForbiddenWord = forbiddenWords.some(word => messageContent.includes(word));
-    if (containsForbiddenWord) {
-        try {
-            await message.delete();
-            const moderationEmbed = {
-                color: 0xff0000,
-                title: '⚠️ Message supprimé',
-                description: 'Un message contenant des mots interdits a été supprimé.',
-                fields: [
-                    { name: 'Auteur', value: `${message.author.tag}`, inline: true }
-                ],
-                footer: {
-                    text: `Modération automatique`,
-                    icon_url: message.author.displayAvatarURL({ dynamic: true })
-                },
-                timestamp: new Date()
-            };
-
-            await message.channel.send({ embeds: [moderationEmbed] }).then(msg => {
-                setTimeout(() => msg.delete(), 5000);
-            });
-        } catch (error) {
-            console.error('Erreur lors de la suppression du message interdit:', error);
-        }
-        return;
-    }
-
-    // Vérifier les mots limites
-    const containsWarningWord = warningWords.some(word => messageContent.includes(word));
-    if (containsWarningWord) {
-        const warningEmbed = {
-            color: 0xffa500,
-            title: '⚠️ Attention au langage',
-            description: 'Ce message contient des mots limites. Merci de rester courtois.',
-            footer: {
-                text: `Message à ${message.author.tag}`,
-                icon_url: message.author.displayAvatarURL({ dynamic: true })
-            },
-            timestamp: new Date()
-        };
-
-        await message.channel.send({ embeds: [warningEmbed] }).then(msg => {
-            setTimeout(() => msg.delete(), 5000);
-        });
-    }
-
-    if (!message.content.startsWith(prefix) || message.author.bot) return;
-
-    const commandArgs = message.content.slice(prefix.length).trim().split(/ +/);
-    commandArgs.shift(); // Remove the first element, as it is already processed earlier.
-
-    const selectedCommand = client.commands.get(commandName);
-    if (!selectedCommand) return;
-
-    // Gestion du cooldown global
-    const cooldownTime = 3000; // 3 secondes
-    const now = Date.now();
-    if (globalCooldowns.has(message.author.id)) {
-        const expirationTime = globalCooldowns.get(message.author.id) + cooldownTime;
-        if (now < expirationTime) {
-            const timeLeft = ((expirationTime - now) / 1000).toFixed(1);
-            return message.reply(`⏳ Veuillez attendre ${timeLeft} seconde(s) avant d'exécuter une autre commande.`);
-        }
-    }
-    globalCooldowns.set(message.author.id, now);
-    setTimeout(() => globalCooldowns.delete(message.author.id), cooldownTime);
-
     try {
-        // Bypass complet des vérifications pour l'owner
-        if (isOwner(message.author.id)) {
-            await selectedCommand.execute(message, commandArgs);
+        // Bypass des vérifications pour les commandes sans permissions requises
+        if (!command.permissions) {
+            await command.execute(message, args);
             return;
         }
 
-        // Vérifications normales pour les autres utilisateurs
-        if (selectedCommand.permissions && !message.member.permissions.has(selectedCommand.permissions)) {
-            return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande (\`${selectedCommand.permissions}\`).`);
+        // Bypass pour l'owner
+        if (isOwner(message.author.id)) {
+            await command.execute(message, args);
+            return;
         }
 
-        await selectedCommand.execute(message, args);
+        // Vérification des permissions pour les autres commandes
+        if (!message.member.permissions.has(command.permissions)) {
+            return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande.`);
+        }
+
+        await command.execute(message, args);
     } catch (error) {
-        console.error('Erreur lors de l\'exécution de la commande :', error);
-        logEvent('error', `Erreur lors de l'exécution de la commande ${commandName}: ${error.message}`);
-        message.reply('Une erreur est survenue lors de l\'exécution de cette commande.');
+        const { userMessage, errorId } = errorHandler.handleError(error, message, command);
+        const errorEmbed = {
+            color: 0xFF0000,
+            title: '❌ Erreur',
+            description: userMessage,
+            fields: [
+                { name: 'Commande', value: command.name, inline: true },
+                { name: 'ID de l\'erreur', value: errorId, inline: true }
+            ],
+            footer: { text: 'Si l\'erreur persiste, contactez un administrateur' },
+            timestamp: new Date()
+        };
+        message.reply({ embeds: [errorEmbed] }).catch(() => {
+            message.channel.send({ embeds: [errorEmbed] }).catch(() => {});
+        });
     }
 });
 

@@ -1,8 +1,9 @@
 module.exports = {
     name: 'userinfo',
-    description: 'Affiche des informations détaillées sur un utilisateur.',
+    description: 'Affiche des informations sur un utilisateur.',
     usage: '+userinfo [@utilisateur]',
-    permissions: 'Aucune',
+    category: 'Utilitaire',
+    permissions: null, // Aucune permission requise
     variables: [
         { name: '@utilisateur', description: 'Mention de l\'utilisateur pour afficher ses informations (facultatif).' }
     ],

@@ -61,5 +61,38 @@ module.exports = {
             MENTION_LIMIT: 3,
             SIMILAR_MESSAGES_INTERVAL: 10
         }
+    },
+    setup: {
+        // Configuration par défaut pour l'assistant de configuration
+        defaultSettings: {
+            spam: {
+                enabled: true,
+                maxMessages: 5,
+                timeWindow: 5000,
+                action: 'warn'
+            },
+            wordFilter: {
+                enabled: true,
+                action: 'delete',
+                notifyUser: true
+            },
+            mentions: {
+                enabled: true,
+                maxMentions: 3,
+                action: 'warn'
+            },
+            links: {
+                enabled: true,
+                whitelist: [],
+                action: 'delete'
+            }
+        },
+        // Messages d'aide pour chaque paramètre
+        helpMessages: {
+            spam: 'Configure la protection anti-spam\nOptions: maxMessages, timeWindow, action',
+            links: 'Configure le filtrage des liens\nOptions: whitelist, blacklist, action',
+            mentions: 'Configure la limite de mentions\nOptions: maxMentions, action',
+            caps: 'Configure la limite de majuscules\nOptions: percentage, minLength'
+        }
     }
 };

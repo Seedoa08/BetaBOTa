@@ -4,8 +4,6 @@ const path = require('path');
 const userResolver = require('../utils/userResolver');
 const isOwner = require('../utils/isOwner');
 
-const logsFile = './logs/moderation.json';
-
 module.exports = {
     name: 'ban',
     description: 'Bannit un utilisateur du serveur.',
@@ -18,13 +16,14 @@ module.exports = {
         { name: '--del [jours]', description: 'Supprimer les messages des X derniers jours (1-7).' }
     ],
     async execute(message, args) {
+        // Vérifier si le bot a la permission de bannir
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+            return message.reply('❌ Je n\'ai pas la permission de bannir des membres. Veuillez vérifier mes permissions.');
+        }
+
         // Vérifier si l'utilisateur est un owner du bot
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
             return message.reply('❌ Vous n\'avez pas la permission de bannir des membres.');
-        }
-
-        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.BanMembers)) {
-            return message.reply('❌ Je n\'ai pas la permission de bannir des membres.');
         }
 
         const silentFlag = args.includes('--silent');

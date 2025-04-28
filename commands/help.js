@@ -5,15 +5,23 @@ const commandManager = require('../utils/commandManager');
 module.exports = {
     name: 'help',
     description: 'Affiche la liste des commandes disponibles.',
-    usage: '+help [catégorie]',
-    permissions: 'Aucune',
+    usage: '+help [commande]',
+    category: 'Utilitaire',
+    permissions: null, // Aucune permission requise
     async execute(message, args) {
+        // Filtrer les commandes selon les permissions de l'utilisateur
+        const userCommands = message.client.commands.filter(cmd => {
+            if (!cmd.permissions) return true; // Commandes publiques
+            if (isOwner(message.author.id)) return true; // L'owner voit tout
+            return message.member.permissions.has(cmd.permissions); // Vérifier les permissions
+        });
+
+        // Modification de l'affichage des commandes
         const categories = {
-            "🛡️ Modération": ['ban', 'kick', 'mute', 'unmute', 'warn', 'clear', 'lock', 'unlock', 'slowmode', 'purge', 'nuke'],
-            "⚙️ Configuration": ['anti-raid', 'settings', 'maintenance', 'automod'],
-            "📊 Utilitaires": ['ping', 'info', 'serverinfo', 'userinfo', 'pic', 'banner', 'snipe'],
-            "🛠️ Système": ['help', 'helpall', 'warnings'],
-            "🔒 Administration": ['eval', 'maintenance', 'owneronly']
+            "🛡️ Modération": ['ban', 'kick', 'mute', 'unmute', 'warn', 'clear'], // Commandes de modération
+            "⚙️ Configuration": ['anti-raid', 'settings', 'automod'], // Commandes de configuration
+            "📊 Utilitaire": ['ping', 'serverinfo', 'userinfo', 'help', 'info', 'avatar'], // Commandes publiques
+            "🔒 Administration": ['eval', 'maintenance', 'owneronly'] // Commandes admin
         };
 
         // Créer des embeds pour chaque catégorie
@@ -107,7 +115,7 @@ module.exports = {
         });
 
         collector.on('end', () => {
-            helpMessage.edit({ components: [] }).catch(() => {});
+            helpMessage.edit({ components: [] }).catch(() => { });
         });
     }
 };

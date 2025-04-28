@@ -1,129 +1,61 @@
-const { PermissionsBitField } = require('discord.js');
 const fs = require('fs');
-
-const maintenanceFile = './data/maintenance.json';
+const path = require('path');
+const maintenanceFile = path.join(__dirname, '../data/maintenance.json');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'maintenance',
-    description: 'Active/désactive le mode maintenance du bot',
-    usage: '+maintenance <on/off> [raison]',
+    description: 'Active ou désactive le mode maintenance pour le bot.',
+    usage: '+maintenance <on/off/status>',
     permissions: 'OwnerOnly',
     variables: [
-        { name: 'on/off', description: 'Active ou désactive le mode maintenance' },
-        { name: 'raison', description: 'Raison de la maintenance (facultatif)' }
+        { name: 'on', description: 'Active le mode maintenance.' },
+        { name: 'off', description: 'Désactive le mode maintenance.' },
+        { name: 'status', description: 'Affiche l\'état actuel du mode maintenance.' }
     ],
     async execute(message, args) {
-        const { owners } = require('../config/owners');
-        if (!owners.includes(message.author.id)) {
+        if (!isOwner(message.author.id)) {
             return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
 
-        const maintenance = {
-            active: false,
-            reason: null,
-            startTime: null,
-            activatedBy: null
-        };
-
-        // Charger l'état actuel de la maintenance
-        if (fs.existsSync(maintenanceFile)) {
-            Object.assign(maintenance, JSON.parse(fs.readFileSync(maintenanceFile)));
+        const mode = args[0]?.toLowerCase();
+        if (!['on', 'off', 'status'].includes(mode)) {
+            return message.reply('❌ Utilisation invalide. Exemple : `+maintenance on`, `+maintenance off`, ou `+maintenance status`.');
         }
 
-        const action = args[0]?.toLowerCase();
-        const reason = args.slice(1).join(' ') || 'Maintenance en cours';
+        // Vérifier l'état actuel
+        const maintenanceData = fs.existsSync(maintenanceFile)
+            ? JSON.parse(fs.readFileSync(maintenanceFile, 'utf8'))
+            : { active: false };
 
-        if (!action || !['on', 'off', 'status'].includes(action)) {
-            return message.reply('❌ Usage: `+maintenance <on/off/status> [raison]`');
+        if (mode === 'status') {
+            const statusMessage = maintenanceData.active
+                ? '⚠️ Le bot est actuellement en mode maintenance. Seules les commandes essentielles sont disponibles.'
+                : '✅ Le bot est actuellement en mode normal. Toutes les commandes sont disponibles.';
+            return message.reply(statusMessage);
         }
 
-        switch (action) {
-            case 'on':
-                if (maintenance.active) {
-                    return message.reply('❌ Le mode maintenance est déjà activé.');
-                }
-                maintenance.active = true;
-                maintenance.reason = reason;
-                maintenance.startTime = Date.now();
-                maintenance.activatedBy = message.author.id;
-
-                // Notification dans tous les serveurs
-                message.client.guilds.cache.forEach(async guild => {
-                    const systemChannel = guild.systemChannel || 
-                                       guild.channels.cache.find(c => 
-                                           c.permissionsFor(guild.members.me)
-                                           .has(PermissionsBitField.Flags.SendMessages));
-                    
-                    if (systemChannel) {
-                        const maintenanceEmbed = {
-                            color: 0xFF0000,
-                            title: '🛠️ Mode Maintenance Activé',
-                            description: reason,
-                            fields: [
-                                { name: 'Durée estimée', value: 'Indéterminée' },
-                                { name: 'Fonctionnalités limitées', value: '• Commandes restreintes\n• Système auto-mod désactivé\n• Logs temporairement suspendus' }
-                            ],
-                            footer: { text: 'Seules les commandes essentielles resteront actives' },
-                            timestamp: new Date()
-                        };
-                        await systemChannel.send({ embeds: [maintenanceEmbed] });
-                    }
-                });
-                break;
-
-            case 'off':
-                if (!maintenance.active) {
-                    return message.reply('❌ Le mode maintenance n\'est pas activé.');
-                }
-                const duration = Date.now() - maintenance.startTime;
-                maintenance.active = false;
-                maintenance.reason = null;
-                maintenance.startTime = null;
-
-                // Notification de fin de maintenance
-                message.client.guilds.cache.forEach(async guild => {
-                    const systemChannel = guild.systemChannel || 
-                                       guild.channels.cache.find(c => 
-                                           c.permissionsFor(guild.members.me)
-                                           .has(PermissionsBitField.Flags.SendMessages));
-                    
-                    if (systemChannel) {
-                        const endMaintenanceEmbed = {
-                            color: 0x00FF00,
-                            title: '✅ Maintenance Terminée',
-                            description: 'Toutes les fonctionnalités sont rétablies',
-                            fields: [
-                                { name: 'Durée totale', value: `${Math.floor(duration / 60000)} minutes` }
-                            ],
-                            timestamp: new Date()
-                        };
-                        await systemChannel.send({ embeds: [endMaintenanceEmbed] });
-                    }
-                });
-                break;
-
-            case 'status':
-                const statusEmbed = {
-                    color: maintenance.active ? 0xFF0000 : 0x00FF00,
-                    title: '📊 État de la Maintenance',
-                    fields: [
-                        { name: 'État', value: maintenance.active ? '🔴 Activée' : '🟢 Désactivée' }
-                    ]
-                };
-                
-                if (maintenance.active) {
-                    const duration = Date.now() - maintenance.startTime;
-                    statusEmbed.fields.push(
-                        { name: 'Raison', value: maintenance.reason },
-                        { name: 'Durée', value: `${Math.floor(duration / 60000)} minutes` },
-                        { name: 'Activé par', value: `<@${maintenance.activatedBy}>` }
-                    );
-                }
-                
-                await message.channel.send({ embeds: [statusEmbed] });
-                break;
+        // Activer ou désactiver le mode maintenance
+        const isActivating = mode === 'on';
+        if (maintenanceData.active === isActivating) {
+            return message.reply(
+                isActivating
+                    ? '⚠️ Le mode maintenance est déjà activé.'
+                    : '⚠️ Le mode maintenance est déjà désactivé.'
+            );
         }
 
-        fs.writeFileSync(maintenanceFile, JSON.stringify(maintenance, null, 2));
+        maintenanceData.active = isActivating;
+        try {
+            fs.writeFileSync(maintenanceFile, JSON.stringify(maintenanceData, null, 4));
+            return message.reply(
+                isActivating
+                    ? '✅ Le mode maintenance est maintenant activé. Seules les commandes essentielles sont disponibles.'
+                    : '✅ Le mode maintenance est maintenant désactivé. Toutes les commandes sont disponibles.'
+            );
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du fichier maintenance.json:', error);
+            return message.reply('❌ Une erreur est survenue lors de la mise à jour du mode maintenance.');
+        }
     }
 };

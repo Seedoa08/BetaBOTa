@@ -102,110 +102,64 @@ module.exports = {
                 return message.reply({ embeds: [statusEmbed] });
 
             case 'setup':
-                const settings = {
-                    joinThreshold: config.raidMode?.joinThreshold || 5,
-                    timeWindow: config.raidMode?.timeWindow / 1000 || 10,
-                    accountAge: config.raidMode?.accountAge || 7,
-                    action: config.raidMode?.action || 'kick',
-                    autoLockdown: config.raidMode?.autoLockdown || false
-                };
-
-                const settingPrompts = {
-                    joinThreshold: 'Combien de joins suspects en combien de secondes ?',
-                    accountAge: 'Âge minimum des comptes en jours ?',
-                    action: 'Action à prendre (kick/ban) ?',
-                    autoLockdown: 'Activer le verrouillage automatique des salons (oui/non) ?'
-                };
-
-                const setupEmbed = {
-                    color: 0x0099ff,
-                    title: '⚙️ Configuration Anti-Raid',
-                    description: 'Répondez aux questions suivantes pour configurer l\'anti-raid.\nTapez `cancel` pour annuler.',
-                    fields: [
-                        { name: 'Joins max', value: `${settings.joinThreshold} joins / ${settings.timeWindow}s`, inline: true },
-                        { name: 'Âge minimum', value: `${settings.accountAge} jours`, inline: true },
-                        { name: 'Action', value: settings.action, inline: true },
-                        { name: 'Verrouillage auto', value: settings.autoLockdown ? 'Activé' : 'Désactivé', inline: true }
-                    ]
-                };
-
-                const setupMsg = await message.reply({ embeds: [setupEmbed] });
-                const filter = m => m.author.id === message.author.id;
-
-                for (const [setting, prompt] of Object.entries(settingPrompts)) {
-                    await message.channel.send(`📝 **${prompt}**`);
-                    
+                async function setupAntiRaid(message) {
                     try {
-                        const collected = await message.channel.awaitMessages({ 
-                            filter, 
-                            max: 1, 
+                        await message.channel.send('📝 Combien de joins suspects en combien de secondes ? (format: nombre/secondes, exemple: 5/10)');
+                        
+                        const filter = m => m.author.id === message.author.id;
+                        const collected = await message.channel.awaitMessages({
+                            filter,
+                            max: 1,
                             time: 30000,
-                            errors: ['time'] 
+                            errors: ['time']
                         });
 
-                        const response = collected.first().content.toLowerCase();
-                        if (response === 'cancel') {
-                            return message.reply('❌ Configuration annulée.');
+                        const response = collected.first().content;
+                        const [joins, seconds] = response.split('/').map(Number);
+
+                        if (!joins || !seconds || isNaN(joins) || isNaN(seconds)) {
+                            return message.reply('❌ Format invalide. Exemple correct: `5/10` pour 5 joins en 10 secondes.');
                         }
 
-                        switch (setting) {
-                            case 'joinThreshold':
-                                const [joins, seconds] = response.split(/\s+/);
-                                if (isNaN(joins) || isNaN(seconds)) {
-                                    return message.reply('❌ Format invalide. Configuration annulée.');
-                                }
-                                settings.joinThreshold = parseInt(joins);
-                                settings.timeWindow = parseInt(seconds);
-                                break;
-                            case 'accountAge':
-                                const days = parseInt(response);
-                                if (isNaN(days)) {
-                                    return message.reply('❌ Nombre invalide. Configuration annulée.');
-                                }
-                                settings.accountAge = days;
-                                break;
-                            case 'action':
-                                if (!['kick', 'ban'].includes(response)) {
-                                    return message.reply('❌ Action invalide. Configuration annulée.');
-                                }
-                                settings.action = response;
-                                break;
-                            case 'autoLockdown':
-                                settings.autoLockdown = ['oui', 'yes', 'true'].includes(response);
-                                break;
+                        // Vérifier que les valeurs sont raisonnables
+                        if (joins < 2 || joins > 20 || seconds < 5 || seconds > 60) {
+                            return message.reply('❌ Valeurs invalides. Le nombre de joins doit être entre 2 et 20, et les secondes entre 5 et 60.');
                         }
+
+                        const config = {
+                            enabled: true,
+                            joinThreshold: joins,
+                            timeWindow: seconds,
+                            action: 'kick' // Action par défaut
+                        };
+
+                        // Sauvegarder la configuration
+                        saveAntiRaidConfig(message.guild.id, config);
+
+                        return message.reply({
+                            embeds: [{
+                                color: 0x00ff00,
+                                title: '✅ Configuration Anti-Raid',
+                                description: 'La protection anti-raid a été configurée avec succès !',
+                                fields: [
+                                    { name: 'Seuil de détection', value: `${joins} joins en ${seconds} secondes`, inline: true },
+                                    { name: 'Action', value: 'Kick', inline: true },
+                                    { name: 'Status', value: 'Activé ✅', inline: true }
+                                ],
+                                footer: { text: 'Utilisez +anti-raid status pour voir la configuration actuelle' }
+                            }]
+                        });
                     } catch (error) {
-                        return message.reply('❌ Configuration annulée (timeout).');
+                        if (error.name === 'DiscordAPIError') {
+                            return message.reply('❌ Une erreur est survenue. Vérifiez que j\'ai les permissions nécessaires.');
+                        }
+                        return message.reply('❌ Configuration annulée - temps écoulé ou erreur.');
                     }
                 }
 
-                // Sauvegarder la configuration
-                serverConfig.updateConfig(message.guild.id, {
-                    antiRaid: true,
-                    raidMode: {
-                        enabled: true,
-                        joinThreshold: settings.joinThreshold,
-                        timeWindow: settings.timeWindow * 1000,
-                        accountAge: settings.accountAge,
-                        action: settings.action,
-                        autoLockdown: settings.autoLockdown
-                    }
-                });
+                setupAntiRaid(message);
 
-                const finalEmbed = {
-                    color: 0x00ff00,
-                    title: '✅ Configuration Anti-Raid terminée',
-                    description: 'La protection anti-raid a été configurée avec succès.',
-                    fields: [
-                        { name: 'Seuil', value: `${settings.joinThreshold} joins en ${settings.timeWindow}s`, inline: true },
-                        { name: 'Âge minimum', value: `${settings.accountAge} jours`, inline: true },
-                        { name: 'Action', value: settings.action, inline: true },
-                        { name: 'Verrouillage auto', value: settings.autoLockdown ? 'Activé' : 'Désactivé', inline: true }
-                    ],
-                    footer: { text: 'Protection anti-raid active' }
-                };
-
-                return message.reply({ embeds: [finalEmbed] });
+                return;
 
             default:
                 return message.reply('❌ Action invalide. Utilisez `on`, `off`, `status` ou `setup`.');

@@ -4,7 +4,8 @@ module.exports = {
     name: 'ping',
     description: 'Affiche la latence du bot et de l\'API Discord.',
     usage: '+ping',
-    permissions: 'Aucune',
+    category: 'Utilitaire',
+    permissions: null, // Aucune permission requise
     async execute(message) {
         const cooldownTime = 5000; // 5 secondes
         const now = Date.now();

@@ -1,72 +1,70 @@
-const { ownerId } = require('../config/owner');
+const fs = require('fs');
+const path = require('path');
 
 class ErrorHandler {
-    constructor(client) {
-        this.client = client;
+    constructor() {
+        this.errorLogPath = path.join(__dirname, '../logs/errors.json');
+        this.ensureLogFile();
     }
 
-    async handleError(error, context) {
-        // Log l'erreur dans la console
-        console.error(`Erreur dans ${context}:`, error);
-
-        // Ignorer certaines erreurs non critiques
-        if (error.code === 50035 && error.message.includes('Unknown message')) {
-            return; // Message supprimé, on ignore silencieusement
+    ensureLogFile() {
+        const dir = path.dirname(this.errorLogPath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
         }
+        if (!fs.existsSync(this.errorLogPath)) {
+            fs.writeFileSync(this.errorLogPath, JSON.stringify([], null, 2));
+        }
+    }
 
-        // Préparer le message d'erreur détaillé
-        const errorDetails = {
-            context,
+    logError(error, context) {
+        const errorLog = {
+            timestamp: new Date().toISOString(),
+            type: error.name,
             message: error.message,
-            code: error.code,
-            status: error.status,
-            url: error.url,
-            method: error.method
+            stack: error.stack,
+            context: context,
         };
 
-        const errorMessage = [
-            `❌ **Erreur détectée dans ${context}**`,
-            '```js',
-            `Message: ${errorDetails.message}`,
-            `Code: ${errorDetails.code || 'N/A'}`,
-            `Status: ${errorDetails.status || 'N/A'}`,
-            errorDetails.url ? `URL: ${errorDetails.url}` : null,
-            errorDetails.method ? `Method: ${errorDetails.method}` : null,
-            '```'
-        ].filter(Boolean).join('\n');
-
-        try {
-            const owner = await this.client.users.fetch(ownerId);
-            if (owner) {
-                // Envoyer un nouveau message au lieu de répondre
-                await owner.send(errorMessage).catch(err => {
-                    console.error('Impossible d\'envoyer l\'erreur en DM:', err);
-                });
-            }
-        } catch (err) {
-            console.error('Erreur lors de l\'envoi du message à l\'owner:', err);
+        const currentLogs = JSON.parse(fs.readFileSync(this.errorLogPath, 'utf8'));
+        currentLogs.unshift(errorLog);
+        
+        // Garder uniquement les 100 dernières erreurs
+        if (currentLogs.length > 100) {
+            currentLogs.pop();
         }
 
-        return error;
+        fs.writeFileSync(this.errorLogPath, JSON.stringify(currentLogs, null, 2));
+        return errorLog;
     }
 
-    // Méthode pour gérer les réponses aux messages de manière sécurisée
-    async safeReply(message, content) {
-        try {
-            if (message.deleted) return false;
-            await message.reply(content);
-            return true;
-        } catch (error) {
-            console.error('Erreur lors de la réponse:', error);
-            try {
-                await message.channel.send(content);
-                return true;
-            } catch (channelError) {
-                console.error('Erreur lors de l\'envoi dans le canal:', channelError);
-                return false;
-            }
-        }
+    handleError(error, message, command) {
+        const context = {
+            command: command?.name || 'Unknown',
+            user: message?.author?.tag || 'Unknown',
+            guild: message?.guild?.name || 'DM',
+            channel: message?.channel?.name || 'Unknown'
+        };
+
+        const errorLog = this.logError(error, context);
+
+        // Réponses personnalisées selon le type d'erreur
+        const errorMessages = {
+            'DiscordAPIError[50013]': '❌ Je n\'ai pas les permissions nécessaires pour effectuer cette action.',
+            'DiscordAPIError[50001]': '❌ Je n\'ai pas accès à cette ressource.',
+            'DiscordAPIError[10008]': '❌ Message introuvable ou supprimé.',
+            'RangeError': '❌ Une valeur invalide a été fournie.',
+            'TypeError': '❌ Une erreur de type s\'est produite.',
+            default: '❌ Une erreur est survenue lors de l\'exécution de la commande.'
+        };
+
+        const errorMessage = errorMessages[error.name] || errorMessages.default;
+        return {
+            errorLog,
+            userMessage: errorMessage,
+            errorId: errorLog.timestamp
+        };
     }
 }
 
-module.exports = ErrorHandler;
+module.exports = new ErrorHandler();

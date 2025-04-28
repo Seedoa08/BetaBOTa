@@ -5,14 +5,6 @@ const userResolver = require('../utils/userResolver');
 const { ownerLevel3 } = require('../config/owners'); // Importer les owners
 const isOwner = require('../utils/isOwner');
 
-const muteHistoryFile = './muteHistory.json';
-const logsFile = './logs/moderation.json';
-let muteHistory = {};
-
-if (fs.existsSync(muteHistoryFile)) {
-    muteHistory = JSON.parse(fs.readFileSync(muteHistoryFile, 'utf8'));
-}
-
 module.exports = {
     name: 'mute',
     description: 'Mute un utilisateur avec système progressif.',
@@ -32,9 +24,6 @@ module.exports = {
         }
 
         // Vérifier si l'utilisateur est un owner du bot
-        const isBotOwner = ownerLevel3.includes(message.author.id);
-
-        // Vérifier les permissions uniquement si l'utilisateur n'est pas un owner
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
             return message.reply('❌ Vous n\'avez pas la permission de mute des membres.');
         }

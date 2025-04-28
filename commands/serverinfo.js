@@ -2,7 +2,8 @@ module.exports = {
     name: 'serverinfo',
     description: 'Affiche des informations détaillées sur le serveur.',
     usage: '+serverinfo',
-    permissions: 'Aucune',
+    category: 'Utilitaire',
+    permissions: null, // Aucune permission requise
     variables: [],
     async execute(message) {
         const { guild } = message;
