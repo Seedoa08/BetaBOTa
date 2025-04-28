@@ -1,4 +1,5 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'unmute',
@@ -6,8 +7,14 @@ module.exports = {
     usage: '+unmute @utilisateur',
     permissions: 'ModerateMembers',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-            return message.reply('❌ Vous n\'avez pas la permission de retirer le mute des membres.');
+        // Vérifier uniquement les permissions du bot
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+            return message.reply('❌ Je n\'ai pas la permission de unmute des membres.');
+        }
+
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+            return message.reply('❌ Vous n\'avez pas la permission de unmute des membres.');
         }
 
         const user = message.mentions.users.first();

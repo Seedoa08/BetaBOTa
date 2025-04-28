@@ -1,12 +1,19 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'role',
-    description: 'Gère les rôles des membres',
+    description: 'Gère les rôles d\'un utilisateur',
     usage: '+role <add/remove/info> @utilisateur @role',
     permissions: 'ManageRoles',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+        // Vérifier uniquement les permissions du bot
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+            return message.reply('❌ Je n\'ai pas la permission de gérer les rôles.');
+        }
+
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
             return message.reply('❌ Vous n\'avez pas la permission de gérer les rôles.');
         }
 

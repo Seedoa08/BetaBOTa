@@ -1,50 +1,45 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'rank',
-    description: 'Affiche les membres ayant un rôle spécifique.',
-    usage: '+rank @role | <roleID>',
+    description: 'Ajoute un rôle à un utilisateur',
+    usage: '+rank @role @utilisateur',
     permissions: 'ManageRoles',
-    variables: [
-        { name: '@role | <roleID>', description: 'Mention ou ID du rôle pour afficher ses membres.' }
-    ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+        // Vérifier uniquement les permissions du bot
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+            return message.reply('❌ Je n\'ai pas la permission de gérer les rôles.');
+        }
+
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
             return message.reply('❌ Vous n\'avez pas la permission de gérer les rôles.');
         }
 
-        const roleIdentifier = args[0];
-        if (!roleIdentifier) {
-            return message.reply('❌ Vous devez mentionner un rôle ou fournir son ID.');
+        const role = message.mentions.roles.first() || message.guild.roles.cache.get(args[0]);
+        const member = message.mentions.members.first();
+
+        if (!role || !member) {
+            return message.reply('❌ Utilisation : `+rank @role @utilisateur`');
         }
 
-        // Récupérer le rôle par mention ou ID
-        const role = message.guild.roles.cache.get(roleIdentifier.replace(/[<@&>]/g, '')) || 
-                     message.guild.roles.cache.find(r => r.name.toLowerCase() === roleIdentifier.toLowerCase());
-
-        if (!role) {
-            return message.reply('❌ Rôle introuvable. Assurez-vous que le rôle existe et que vous avez fourni une mention ou un ID valide.');
+        // Vérifier si le rôle est gérable par le bot
+        if (!role.editable || role.position >= message.guild.members.me.roles.highest.position) {
+            return message.reply('❌ Je ne peux pas gérer ce rôle. Il est peut-être plus haut que mon rôle le plus élevé.');
         }
-
-        // Récupérer les membres ayant ce rôle
-        const membersWithRole = role.members.map(member => `${member.user.tag} (${member.id})`).join('\n') || 'Aucun membre avec ce rôle.';
-
-        const rankEmbed = {
-            color: role.color || 0x0099ff,
-            title: `📋 Membres avec le rôle ${role.name}`,
-            description: membersWithRole,
-            footer: {
-                text: `ID du rôle: ${role.id}`,
-                icon_url: message.guild.iconURL({ dynamic: true })
-            },
-            timestamp: new Date()
-        };
 
         try {
-            await message.channel.send({ embeds: [rankEmbed] });
+            if (member.roles.cache.has(role.id)) {
+                await member.roles.remove(role);
+                message.reply(`✅ Rôle \`${role.name}\` retiré de ${member.user.tag}`);
+            } else {
+                await member.roles.add(role);
+                message.reply(`✅ Rôle \`${role.name}\` ajouté à ${member.user.tag}`);
+            }
         } catch (error) {
-            console.error('Erreur dans la commande rank:', error);
-            message.reply('❌ Une erreur est survenue lors de l\'exécution de la commande.');
+            console.error('Erreur lors de la modification du rôle:', error);
+            message.reply('❌ Une erreur est survenue lors de la modification du rôle.');
         }
     }
 };

@@ -3,46 +3,50 @@ const path = require('path');
 
 class ServerConfig {
     constructor() {
-        this.configPath = path.join(__dirname, '../data/serverConfigs.json');
-        this.configs = this.loadConfigs();
-    }
-
-    loadConfigs() {
-        if (!fs.existsSync(this.configPath)) {
-            fs.writeFileSync(this.configPath, JSON.stringify({}, null, 2));
-            return {};
-        }
-        return JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
-    }
-
-    getConfig(guildId) {
-        if (!this.configs[guildId]) {
-            this.configs[guildId] = {
-                antiRaid: false,
-                automod: false,
-                muteRole: null,
-                logChannel: null,
-                prefix: '+',
-                warnThreshold: 3,
-                maxMentions: 5,
-                maxEmojis: 10,
-                maxLines: 10
-            };
-            this.saveConfigs();
-        }
-        return this.configs[guildId];
-    }
-
-    updateConfig(guildId, settings) {
-        this.configs[guildId] = {
-            ...this.getConfig(guildId),
-            ...settings
+        this.configPath = path.join(__dirname, '../data/serverConfig.json');
+        this.defaultConfig = {
+            antiRaid: {
+                enabled: false,
+                joinCooldown: 10,
+                maxJoins: 5,
+                action: 'kick',
+                whitelist: []
+            }
         };
-        this.saveConfigs();
+        this.loadConfig();
     }
 
-    saveConfigs() {
-        fs.writeFileSync(this.configPath, JSON.stringify(this.configs, null, 2));
+    loadConfig() {
+        try {
+            if (!fs.existsSync(this.configPath)) {
+                fs.writeFileSync(this.configPath, JSON.stringify({}, null, 4));
+            }
+            this.config = JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
+        } catch (error) {
+            console.error('Erreur lors du chargement de la configuration:', error);
+            this.config = {};
+        }
+    }
+
+    saveConfig() {
+        try {
+            fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 4));
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde de la configuration:', error);
+        }
+    }
+
+    getServerConfig(guildId) {
+        if (!this.config[guildId]) {
+            this.config[guildId] = { ...this.defaultConfig };
+            this.saveConfig();
+        }
+        return this.config[guildId];
+    }
+
+    updateServerConfig(guildId, newConfig) {
+        this.config[guildId] = { ...this.config[guildId], ...newConfig };
+        this.saveConfig();
     }
 }
 

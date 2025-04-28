@@ -1,13 +1,15 @@
-const { PermissionsBitField } = require('discord.js');
-const os = require('os');
-const fs = require('fs');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'diagnostic',
-    description: 'Effectue un diagnostic complet du bot et du serveur',
-    usage: '+diagnostic',
+    description: 'Effectue un diagnostic du bot',
     permissions: 'Administrator',
-    async execute(message) {
+    async execute(message, args) {
+        // Cette commande est réservée aux owners
+        if (!isOwner(message.author.id)) {
+            return message.reply('❌ Cette commande est réservée aux owners du bot.');
+        }
+
         const startTime = Date.now();
 
         // Vérifier les fichiers essentiels

@@ -1,10 +1,8 @@
-const { ownerId } = require('../config/owner');
-const fs = require('fs');
-const path = require('path');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'reload',
-    description: 'Recharge une commande ou toutes les commandes',
+    description: 'Recharge une commande',
     usage: '+reload [commande/all]',
     permissions: 'OwnerOnly',
     variables: [
@@ -12,8 +10,9 @@ module.exports = {
         { name: 'all', description: 'Recharge toutes les commandes' }
     ],
     async execute(message, args) {
-        if (message.author.id !== ownerId) {
-            return message.reply('❌ Cette commande est réservée au propriétaire du bot.');
+        // Commande réservée aux owners uniquement
+        if (!isOwner(message.author.id)) {
+            return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
 
         if (!args.length) {

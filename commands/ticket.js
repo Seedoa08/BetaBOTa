@@ -1,40 +1,54 @@
 const { PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'ticket',
     description: 'Gère le système de tickets',
-    usage: '+ticket <create/close/setup>',
+    usage: '+ticket <create/close>',
     permissions: 'ManageChannels',
-    variables: [
-        { name: 'create', description: 'Crée un nouveau ticket' },
-        { name: 'close', description: 'Ferme le ticket actuel' },
-        { name: 'setup', description: 'Configure le système de tickets' }
-    ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
             return message.reply('❌ Vous n\'avez pas la permission de gérer les tickets.');
         }
 
         const subCommand = args[0]?.toLowerCase();
 
         switch (subCommand) {
-            case 'setup':
-                const setupEmbed = {
-                    color: 0x0099ff,
-                    title: '🎫 Système de Tickets',
-                    description: 'Cliquez sur le bouton ci-dessous pour créer un ticket'
-                };
+            case 'create':
+                try {
+                    const ticketChannel = await message.guild.channels.create({
+                        name: `ticket-${message.author.username}`,
+                        type: 0, // Text channel
+                        permissionOverwrites: [
+                            {
+                                id: message.guild.roles.everyone.id,
+                                deny: [PermissionsBitField.Flags.ViewChannel]
+                            },
+                            {
+                                id: message.author.id,
+                                allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
+                            }
+                        ]
+                    });
 
-                const row = new ActionRowBuilder()
-                    .addComponents(
+                    const row = new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
-                            .setCustomId('create_ticket')
-                            .setLabel('Créer un ticket')
-                            .setStyle(ButtonStyle.Primary)
-                            .setEmoji('🎫')
+                            .setCustomId('close-ticket')
+                            .setLabel('Fermer le ticket')
+                            .setStyle(ButtonStyle.Danger)
                     );
 
-                await message.channel.send({ embeds: [setupEmbed], components: [row] });
+                    await ticketChannel.send({
+                        content: `🎫 Ticket créé pour <@${message.author.id}>`,
+                        components: [row]
+                    });
+
+                    message.reply(`✅ Votre ticket a été créé : <#${ticketChannel.id}>`);
+                } catch (error) {
+                    console.error('Erreur lors de la création du ticket:', error);
+                    message.reply('❌ Une erreur est survenue lors de la création du ticket.');
+                }
                 break;
 
             case 'close':
@@ -42,18 +56,16 @@ module.exports = {
                     return message.reply('❌ Cette commande ne peut être utilisée que dans un canal de ticket.');
                 }
 
-                const closeEmbed = {
-                    color: 0xff0000,
-                    title: '🔒 Fermeture du ticket',
-                    description: 'Le ticket va être fermé dans 5 secondes...'
-                };
-
-                await message.reply({ embeds: [closeEmbed] });
-                setTimeout(() => message.channel.delete(), 5000);
+                try {
+                    await message.channel.delete();
+                } catch (error) {
+                    console.error('Erreur lors de la suppression du ticket:', error);
+                    message.reply('❌ Une erreur est survenue lors de la fermeture du ticket.');
+                }
                 break;
 
             default:
-                return message.reply('❌ Usage: `+ticket <create/close/setup>`');
+                message.reply('❌ Utilisation : `+ticket <create/close>`');
         }
     }
 };

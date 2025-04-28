@@ -1,14 +1,14 @@
 const { PermissionsBitField } = require('discord.js');
-const fs = require('fs');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'history',
-    description: 'Affiche l\'historique complet des sanctions d\'un utilisateur',
-    usage: '+history @utilisateur',
-    permissions: 'ModerateMembers',
+    description: 'Affiche l\'historique des actions de modération',
+    permissions: 'ViewAuditLog',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-            return message.reply('❌ Permission manquante: Modérer les membres');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ViewAuditLog)) {
+            return message.reply('❌ Vous n\'avez pas la permission de voir l\'historique.');
         }
 
         const user = message.mentions.users.first();

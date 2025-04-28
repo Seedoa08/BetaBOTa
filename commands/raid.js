@@ -1,8 +1,9 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'raid',
-    description: 'Active/désactive immédiatement le mode raid',
+    description: 'Gère les paramètres anti-raid',
     usage: '+raid <on/off>',
     permissions: 'Administrator',
     variables: [
@@ -10,8 +11,9 @@ module.exports = {
         { name: 'off', description: 'Désactive le mode raid' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Cette commande nécessite les permissions Administrateur.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous devez être administrateur pour gérer l\'anti-raid.');
         }
 
         const action = args[0]?.toLowerCase();

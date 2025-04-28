@@ -1,8 +1,9 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'nickname',
-    description: 'Change le pseudo d\'un membre.',
+    description: 'Change le surnom d\'un utilisateur',
     usage: '+nickname @utilisateur [nouveau pseudo]',
     permissions: 'ManageNicknames',
     variables: [
@@ -10,8 +11,9 @@ module.exports = {
         { name: 'nouveau pseudo', description: 'Le nouveau pseudo (vide pour réinitialiser)' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageNicknames)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les pseudos.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageNicknames)) {
+            return message.reply('❌ Vous n\'avez pas la permission de changer les surnoms.');
         }
 
         const member = message.mentions.members.first();

@@ -1,20 +1,18 @@
 const { PermissionsBitField } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
 const isOwner = require('../utils/isOwner');
-
-const configPath = './config/automod.js';
 
 module.exports = {
     name: 'automod',
-    description: 'Configure le système d\'automodération',
-    usage: '+automod <setup/status/edit/help>',
+    description: 'Configure l\'automodération du serveur',
+    usage: '+automod <setup/status/edit>',
     permissions: 'Administrator',
+    
     async execute(message, args) {
+        // Bypass pour les owners
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
             return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
         }
-
+        
         const subCommand = args[0]?.toLowerCase();
         
         if (!subCommand || subCommand === 'help') {

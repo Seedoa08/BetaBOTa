@@ -1,9 +1,9 @@
-const LocalDB = require('../utils/localDB');
-const db = new LocalDB('./wordlist.json');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'wordlist',
-    description: 'Gère la liste des mots interdits.',
+    description: 'Gère la liste des mots interdits',
     usage: '+wordlist <add/remove/list> [mot]',
     permissions: 'ManageMessages',
     variables: [
@@ -12,7 +12,8 @@ module.exports = {
         { name: 'list', description: 'Affiche la liste des mots interdits.' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has('ManageMessages')) {
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
             return message.reply('❌ Vous n\'avez pas la permission de gérer la wordlist.');
         }
 

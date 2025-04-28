@@ -1,4 +1,5 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 const userResolver = require('../utils/userResolver');
 
 module.exports = {
@@ -11,12 +12,14 @@ module.exports = {
         { name: '[raison]', description: 'Raison de l\'expulsion (facultatif).' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
-            return message.reply('❌ Vous n\'avez pas la permission d\'expulser des membres.');
+        // Vérifier uniquement les permissions du bot
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.KickMembers)) {
+            return message.reply('❌ Je n\'ai pas la permission de kick des membres.');
         }
 
-        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.KickMembers)) {
-            return message.reply('❌ Je n\'ai pas la permission d\'expulser des membres.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
+            return message.reply('❌ Vous n\'avez pas la permission de kick des membres.');
         }
 
         const userIdentifier = args[0];

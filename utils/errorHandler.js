@@ -67,4 +67,14 @@ class ErrorHandler {
     }
 }
 
-module.exports = new ErrorHandler();
+module.exports = {
+    handleError(error, message, command) {
+        const errorId = Date.now();
+        console.error(`Error ${errorId}:`, error);
+        
+        return {
+            userMessage: 'Une erreur est survenue lors de l\'exécution de la commande.',
+            errorId: errorId
+        };
+    }
+};

@@ -1,14 +1,20 @@
-const ms = require('ms');
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'softban',
-    description: 'Bannit temporairement un utilisateur.',
+    description: 'Bannit puis débannit un utilisateur pour purger ses messages',
     usage: '+softban @utilisateur [durée] [raison]',
     permissions: 'BanMembers',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
-            return message.reply('❌ Vous n\'avez pas la permission de bannir des membres.');
+        // Vérifier uniquement les permissions du bot
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+            return message.reply('❌ Je n\'ai pas la permission de bannir des membres.');
+        }
+
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
+            return message.reply('❌ Vous n\'avez pas la permission de softban des membres.');
         }
 
         const user = message.mentions.users.first();

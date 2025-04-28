@@ -1,14 +1,15 @@
 const { PermissionsBitField } = require('discord.js');
-const fs = require('fs');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'mutelist',
-    description: 'Affiche l\'historique des mutes d\'un utilisateur',
+    description: 'Affiche la liste des utilisateurs mutés',
     usage: '+mutelist @utilisateur',
     permissions: 'ModerateMembers',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-            return message.reply('❌ Vous n\'avez pas la permission de voir l\'historique des mutes.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+            return message.reply('❌ Vous n\'avez pas la permission de voir la liste des mutes.');
         }
 
         const user = message.mentions.users.first();

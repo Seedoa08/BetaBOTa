@@ -1,16 +1,15 @@
-const fs = require('fs');
-const path = require('path');
-
-const prefixesFile = path.join(__dirname, '../data/prefixes.json');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'setprefix',
-    description: 'Change le préfixe pour ce serveur.',
+    description: 'Change le préfixe du bot',
     usage: '+setprefix <nouveau préfixe>',
     permissions: 'ManageGuild',
     async execute(message, args) {
-        if (!message.member.permissions.has('ManageGuild')) {
-            return message.reply('❌ Vous n\'avez pas la permission de changer le préfixe.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous devez être administrateur pour changer le préfixe.');
         }
 
         const newPrefix = args[0];

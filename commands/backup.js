@@ -1,17 +1,18 @@
-const fs = require('fs');
-const path = require('path');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'backup',
-    description: 'Sauvegarde les fichiers critiques du bot.',
-    usage: '+backup',
-    permissions: 'OwnerOnly',
-    async execute(message) {
-        const ownerId = '1061373376767201360'; // Remplacez par votre ID
-        if (message.author.id !== ownerId) {
-            return message.reply('❌ Cette commande est réservée à l\'owner du bot.');
+    description: 'Gère les sauvegardes du serveur',
+    usage: '+backup <create/load/list/info>',
+    permissions: 'Administrator',
+    
+    async execute(message, args) {
+        // Bypass pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
         }
-
+        
         const backupDir = './backups';
         if (!fs.existsSync(backupDir)) {
             fs.mkdirSync(backupDir, { recursive: true });

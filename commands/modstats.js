@@ -1,6 +1,5 @@
 const { PermissionsBitField } = require('discord.js');
-const fs = require('fs');
-const logsFile = './logs/moderation.json';
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'modstats',
@@ -8,8 +7,9 @@ module.exports = {
     usage: '+modstats [@modérateur]',
     permissions: 'ManageMessages',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-            return message.reply('❌ Vous n\'avez pas la permission de voir les statistiques des modérateurs.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
+            return message.reply('❌ Vous n\'avez pas la permission de voir les statistiques de modération.');
         }
 
         const mod = message.mentions.users.first() || message.author;

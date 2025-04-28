@@ -1,55 +1,57 @@
-const { PermissionsBitField } = require('discord.js');
-const { checkPermissions } = require('../utils/permissions');
+const { PermissionsBitField, ChannelType } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'lock',
-    description: 'Verrouille un canal pour empêcher les membres d\'envoyer des messages.',
+    description: 'Verrouille un canal',
     usage: '+lock [message]',
     permissions: 'ManageChannels',
     variables: [
         { name: '[message]', description: 'Message à afficher après le verrouillage (facultatif).' }
     ],
     async execute(message, args) {
-        // Vérifiez si l'utilisateur a la permission de gérer les canaux
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-            return message.reply('❌ Vous n\'avez pas la permission de verrouiller les canaux.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+            return message.reply('❌ Vous n\'avez pas la permission de verrouiller les salons.');
         }
 
-        // Vérifiez si le bot a la permission de gérer les permissions du canal
         const channel = message.channel;
+
+        // Vérifier si le bot a les permissions nécessaires
         if (!channel.permissionsFor(message.guild.members.me).has(PermissionsBitField.Flags.ManageChannels)) {
             return message.reply('❌ Je n\'ai pas la permission de gérer les permissions de ce canal.');
         }
 
-        // Vérifiez si le canal est déjà verrouillé
-        const currentPermissions = channel.permissionsFor(message.guild.roles.everyone);
-        if (!currentPermissions.has(PermissionsBitField.Flags.SendMessages)) {
-            return message.reply('❌ Ce canal est déjà verrouillé.');
-        }
-
         try {
-            // Vérifiez si d'autres permissions peuvent contourner le verrouillage
-            const conflictingPermissions = channel.permissionOverwrites.cache.some(overwrite =>
-                overwrite.allow.has(PermissionsBitField.Flags.SendMessages) &&
-                overwrite.id !== message.guild.roles.everyone.id
-            );
+            // Désactiver SendMessages pour @everyone
+            await channel.permissionOverwrites.edit(message.guild.roles.everyone.id, {
+                SendMessages: false,
+                SendMessagesInThreads: false,
+                CreatePublicThreads: false,
+                CreatePrivateThreads: false
+            });
 
-            if (conflictingPermissions) {
-                return message.reply('⚠️ Attention : Certains rôles ou utilisateurs ont des permissions qui contournent ce verrouillage.');
+            // Si c'est un salon vocal/stage, désactiver aussi Connect et Speak
+            if (channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice) {
+                await channel.permissionOverwrites.edit(message.guild.roles.everyone.id, {
+                    Connect: false,
+                    Speak: false
+                });
             }
 
-            // Appliquez les permissions pour verrouiller le canal
-            await channel.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: false });
-
             // Message de confirmation
-            const lockMessage = args.join(' ') || '🔒 Ce canal a été verrouillé.';
+            const lockMessage = args.join(' ') || '🔒 Ce salon a été verrouillé.';
             const lockEmbed = {
                 color: 0xff0000,
-                title: '🔒 Canal verrouillé',
+                title: '🔒 Salon verrouillé',
                 description: lockMessage,
+                fields: [
+                    { name: 'Salon', value: `<#${channel.id}>`, inline: true },
+                    { name: 'Modérateur', value: `<@${message.author.id}>`, inline: true }
+                ],
                 footer: {
-                    text: `Verrouillé par ${message.author.tag}`,
-                    icon_url: message.author.displayAvatarURL({ dynamic: true })
+                    text: message.guild.name,
+                    icon_url: message.guild.iconURL({ dynamic: true })
                 },
                 timestamp: new Date()
             };
@@ -57,7 +59,7 @@ module.exports = {
             await message.channel.send({ embeds: [lockEmbed] });
         } catch (error) {
             console.error('Erreur lors du verrouillage du canal:', error);
-            message.reply('❌ Une erreur est survenue lors du verrouillage du canal.');
+            message.reply('❌ Une erreur est survenue lors du verrouillage du salon.');
         }
     }
 };

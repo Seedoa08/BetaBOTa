@@ -1,13 +1,15 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'purge',
-    description: 'Supprime les messages selon certains critères',
+    description: 'Supprime massivement des messages',
     usage: '+purge <type> <nombre> [utilisateur]',
     permissions: 'ManageMessages',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les messages.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+            return message.reply('❌ Vous n\'avez pas la permission de purger les messages.');
         }
 
         const type = args[0]?.toLowerCase();

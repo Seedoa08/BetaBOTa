@@ -1,31 +1,43 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { prefix } = require('../config/globals');
-const commandManager = require('../utils/commandManager');
+const { prefix } = require('../config.json');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'help',
-    description: 'Affiche la liste des commandes disponibles.',
-    usage: '+help [commande]',
-    category: 'Utilitaire',
-    permissions: null, // Aucune permission requise
-    async execute(message, args) {
-        // Filtrer les commandes selon les permissions de l'utilisateur
-        const userCommands = message.client.commands.filter(cmd => {
-            if (!cmd.permissions) return true; // Commandes publiques
-            if (isOwner(message.author.id)) return true; // L'owner voit tout
-            return message.member.permissions.has(cmd.permissions); // Vérifier les permissions
-        });
+    description: 'Affiche l\'aide des commandes',
+    permissions: null,
 
-        // Modification de l'affichage des commandes
+    async execute(message, args) {
+        // Catégories et commandes associées
         const categories = {
-            "🛡️ Modération": ['ban', 'kick', 'mute', 'unmute', 'warn', 'clear'], // Commandes de modération
-            "⚙️ Configuration": ['anti-raid', 'settings', 'automod'], // Commandes de configuration
-            "📊 Utilitaire": ['ping', 'serverinfo', 'userinfo', 'help', 'info', 'avatar'], // Commandes publiques
-            "🔒 Administration": ['eval', 'maintenance', 'owneronly'] // Commandes admin
+            "🛡️ Modération": [
+                'ban', 'kick', 'mute', 'unmute', 'warn', 'clear', 'tempmute', 'softban', 'lock', 'unlock'
+            ],
+            "⚙️ Configuration": [
+                'anti-raid', 'settings', 'automod', 'setprefix', 'welcome', 'modlog', 'raid-mode'
+            ],
+            "📊 Utilitaire": [
+                'ping', 'serverinfo', 'userinfo', 'help', 'info', 'avatar', 'version', 'changelog'
+            ],
+            "🔒 Administration": [
+                'eval', 'maintenance', 'owneronly', 'reload', 'shutdown'
+            ]
         };
 
+        // Filtrer les commandes selon les permissions de l'utilisateur
+        const availableCommands = {};
+        Object.entries(categories).forEach(([category, cmdList]) => {
+            availableCommands[category] = cmdList.filter(cmdName => {
+                const cmd = message.client.commands.get(cmdName);
+                if (!cmd) return false;
+                if (isOwner(message.author.id)) return true;
+                if (!cmd.permissions) return true;
+                return message.member.permissions.has(cmd.permissions);
+            });
+        });
+
         // Créer des embeds pour chaque catégorie
-        const embeds = Object.entries(categories).map(([category, commands]) => ({
+        const embeds = Object.entries(availableCommands).map(([category, commands]) => ({
             color: 0x0099ff,
             title: `📜 Commandes - ${category}`,
             description: `Utilisez \`${prefix}help <commande>\` pour plus d'informations sur une commande spécifique.`,

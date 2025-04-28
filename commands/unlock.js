@@ -1,13 +1,15 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'unlock',
-    description: 'Déverrouille un canal pour permettre aux membres d\'envoyer des messages.',
+    description: 'Déverrouille un canal',
     usage: '+unlock',
     permissions: 'ManageChannels',
     variables: [],
     async execute(message) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
             return message.reply('❌ Vous n\'avez pas la permission de déverrouiller les canaux.');
         }
 

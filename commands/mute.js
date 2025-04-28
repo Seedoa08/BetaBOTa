@@ -1,9 +1,24 @@
 const { PermissionsBitField } = require('discord.js');
-const ms = require('ms');
 const fs = require('fs');
-const userResolver = require('../utils/userResolver');
-const { ownerLevel3 } = require('../config/owners'); // Importer les owners
+const ms = require('ms');
+const path = require('path');
 const isOwner = require('../utils/isOwner');
+const userResolver = require('../utils/userResolver');
+
+// Définir les chemins des fichiers
+const dataPath = path.join(__dirname, '../data');
+const muteHistoryFile = path.join(dataPath, 'muteHistory.json');
+const logsFile = path.join(dataPath, 'moderation-logs.json');
+
+// Créer le dossier data s'il n'existe pas
+if (!fs.existsSync(dataPath)) {
+    fs.mkdirSync(dataPath, { recursive: true });
+}
+
+// Initialiser ou charger l'historique des mutes
+const muteHistory = fs.existsSync(muteHistoryFile) 
+    ? JSON.parse(fs.readFileSync(muteHistoryFile))
+    : {};
 
 module.exports = {
     name: 'mute',
@@ -18,12 +33,12 @@ module.exports = {
         { name: '--silent', description: 'Mute silencieusement' }
     ],
     async execute(message, args) {
-        // Vérifier si le bot a la permission de mute
+        // Vérifier uniquement les permissions du bot
         if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
-            return message.reply('❌ Je n\'ai pas la permission de mute des membres. Veuillez vérifier mes permissions.');
+            return message.reply('❌ Je n\'ai pas la permission de mute des membres.');
         }
 
-        // Vérifier si l'utilisateur est un owner du bot
+        // Bypass des permissions pour les owners
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
             return message.reply('❌ Vous n\'avez pas la permission de mute des membres.');
         }
@@ -35,7 +50,12 @@ module.exports = {
 
         const user = await userResolver(message.client, userIdentifier);
         if (!user) {
-            return message.reply('❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.');
+            return message.reply('❌ Utilisateur introuvable.');
+        }
+        
+        // Vérifier si l'utilisateur ciblé est un owner
+        if (isOwner(user.id)) {
+            return message.reply('❌ Vous ne pouvez pas mute un owner du bot.');
         }
 
         if (user.id === message.guild.ownerId) {
@@ -72,22 +92,23 @@ module.exports = {
             return message.reply('❌ Durée invalide! Exemple: `10m`, `1h`.');
         }
 
-        // Système de mute progressif
-        if (!muteHistory[user.id]) {
-            muteHistory[user.id] = { count: 0, lastMute: null };
-        }
-
-        const userHistory = muteHistory[user.id];
-        const baseDuration = ms('1h');
-        const multiplier = Math.pow(2, userHistory.count); // Durée qui double à chaque mute
-        const finalDuration = durationMs || (baseDuration * multiplier);
-
-        userHistory.count++;
-        userHistory.lastMute = Date.now();
-
-        fs.writeFileSync(muteHistoryFile, JSON.stringify(muteHistory, null, 4));
-
         try {
+            // Initialiser l'historique pour cet utilisateur s'il n'existe pas
+            if (!muteHistory[user.id]) {
+                muteHistory[user.id] = { count: 0, lastMute: null };
+            }
+
+            const userHistory = muteHistory[user.id];
+            const baseDuration = ms('1h');
+            const multiplier = Math.pow(2, userHistory.count);
+            const finalDuration = durationMs || (baseDuration * multiplier);
+
+            userHistory.count++;
+            userHistory.lastMute = Date.now();
+
+            // Sauvegarder l'historique mis à jour
+            fs.writeFileSync(muteHistoryFile, JSON.stringify(muteHistory, null, 4));
+
             await member.timeout(finalDuration, reason);
 
             if (notify) {

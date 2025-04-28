@@ -1,15 +1,19 @@
-const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'role-menu',
-    description: 'Crée un menu de sélection de rôles interactif',
+    description: 'Crée un menu de rôles',
     usage: '+role-menu setup',
     permissions: 'ManageRoles',
     variables: [
         { name: 'setup', description: 'Configure le menu de rôles' }
     ],
     async execute(message, args) {
-        // ...existing permissions check...
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+            return message.reply('❌ Vous n\'avez pas la permission de gérer les rôles.');
+        }
 
         const menu = new StringSelectMenuBuilder()
             .setCustomId('role_select')

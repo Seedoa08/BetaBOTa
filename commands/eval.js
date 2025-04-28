@@ -1,10 +1,8 @@
-const { ownerId } = require('../config/owner');
-const { inspect } = require('util');
-const { EmbedBuilder } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'eval',
-    description: 'Exécute du code JavaScript en temps réel',
+    description: 'Évalue du code JavaScript',
     usage: '+eval <code> [--async] [--silent] [--depth=number]',
     permissions: 'OwnerOnly',
     variables: [
@@ -13,8 +11,9 @@ module.exports = {
         { name: '--depth', description: 'Profondeur d\'inspection des objets' }
     ],
     async execute(message, args) {
-        if (message.author.id !== ownerId) {
-            return message.reply('❌ Cette commande est réservée au propriétaire du bot.');
+        // Commande réservée uniquement aux owners
+        if (!isOwner(message.author.id)) {
+            return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
 
         // Extraire les flags

@@ -1,4 +1,9 @@
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
+
 module.exports = {
+    name: 'moderation',
+    description: 'Gère les paramètres de modération',
     commands: [
         {
             name: 'ban',
@@ -70,5 +75,11 @@ module.exports = {
             usage: '+unlock',
             file: 'unlock.js'
         }
-    ]
+    ],
+    async execute(message, args) {
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
+        }
+    }
 };

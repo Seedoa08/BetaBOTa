@@ -1,12 +1,14 @@
-const { PermissionsBitField, ChannelType } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'channel',
-    description: 'Gère les salons du serveur',
+    description: 'Gère les paramètres des salons',
     usage: '+channel <create/delete/info/lock/unlock> [nom] [type]',
     permissions: 'ManageChannels',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
             return message.reply('❌ Vous n\'avez pas la permission de gérer les salons.');
         }
 

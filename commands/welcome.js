@@ -1,11 +1,9 @@
 const { PermissionsBitField } = require('discord.js');
-const fs = require('fs');
-const { createEmbed } = require('../utils/embeds');
-const theme = require('../config/theme');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'welcome',
-    description: 'Configure le système de bienvenue',
+    description: 'Configure le message de bienvenue',
     usage: '+welcome <set/test/disable> [#canal]',
     permissions: 'Administrator',
     variables: [
@@ -14,8 +12,9 @@ module.exports = {
         { name: 'disable', description: 'Désactive le système de bienvenue' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Cette commande nécessite les permissions administrateur.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous devez être administrateur pour configurer le message de bienvenue.');
         }
 
         const subCommand = args[0]?.toLowerCase();

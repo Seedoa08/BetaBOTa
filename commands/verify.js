@@ -1,4 +1,5 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'verify',
@@ -10,8 +11,9 @@ module.exports = {
         { name: '[message]', description: 'Message personnalisé de vérification' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has('ADMINISTRATOR')) {
-            return message.reply('❌ Vous n\'avez pas la permission de configurer le système de vérification.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous n\'avez pas la permission de configurer la vérification.');
         }
 
         const subCommand = args[0]?.toLowerCase();

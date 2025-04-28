@@ -1,5 +1,21 @@
+const { PermissionsBitField } = require('discord.js');
 const fs = require('fs');
-const warningsFile = './warnings.json';
+const path = require('path');
+const isOwner = require('../utils/isOwner');
+
+// Définir les chemins des fichiers
+const dataPath = path.join(__dirname, '../data');
+const warningsFile = path.join(dataPath, 'warnings.json');
+
+// Créer le dossier data s'il n'existe pas
+if (!fs.existsSync(dataPath)) {
+    fs.mkdirSync(dataPath, { recursive: true });
+}
+
+// Initialiser le fichier warnings s'il n'existe pas
+if (!fs.existsSync(warningsFile)) {
+    fs.writeFileSync(warningsFile, JSON.stringify({}), 'utf8');
+}
 
 module.exports = {
     name: 'warn',
@@ -7,15 +23,27 @@ module.exports = {
     usage: '+warn <add/remove/list> @utilisateur [raison]',
     permissions: 'ModerateMembers',
     async execute(message, args) {
-        if (!message.member.permissions.has('ModerateMembers')) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les avertissements.');
+        // Vérifier uniquement les permissions du bot
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+            return message.reply('❌ Je n\'ai pas la permission de warn des membres.');
+        }
+
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+            return message.reply('❌ Vous n\'avez pas la permission de warn des membres.');
         }
 
         const subCommand = args[0]?.toLowerCase();
         const user = message.mentions.users.first();
-        const reason = args.slice(2).join(' ') || 'Aucune raison fournie.';
-        const warnings = fs.existsSync(warningsFile) ? JSON.parse(fs.readFileSync(warningsFile)) : {};
+        
+        // Vérifier si l'utilisateur ciblé est un owner
+        if (isOwner(user.id)) {
+            return message.reply('❌ Vous ne pouvez pas donner d\'avertissement à un owner du bot.');
+        }
 
+        const reason = args.slice(2).join(' ') || 'Aucune raison fournie.';
+        const warnings = JSON.parse(fs.readFileSync(warningsFile, 'utf8'));
+        
         if (!['add', 'remove', 'list'].includes(subCommand)) {
             return message.reply('❌ Commande invalide. Utilisez `add`, `remove` ou `list`.');
         }

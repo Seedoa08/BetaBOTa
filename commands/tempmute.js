@@ -1,9 +1,9 @@
 const { PermissionsBitField } = require('discord.js');
-const ms = require('ms');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'tempmute',
-    description: 'Mute temporairement un utilisateur.',
+    description: 'Mute temporairement un utilisateur',
     usage: '+tempmute @utilisateur [durée] [raison]',
     permissions: 'ModerateMembers',
     variables: [
@@ -12,7 +12,13 @@ module.exports = {
         { name: '[raison]', description: 'Raison du mute (facultatif).' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+        // Vérifier uniquement les permissions du bot
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+            return message.reply('❌ Je n\'ai pas la permission de mute des membres.');
+        }
+
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
             return message.reply('❌ Vous n\'avez pas la permission de mute des membres.');
         }
 

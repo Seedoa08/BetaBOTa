@@ -1,13 +1,15 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'clear',
-    description: 'Supprime un certain nombre de messages ou des messages spécifiques.',
+    description: 'Supprime des messages en masse',
     usage: '+clear <nombre> [--bots | --users | --mentions | --from @utilisateur]',
     permissions: 'ManageMessages',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les messages.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+            return message.reply('❌ Vous n\'avez pas la permission de supprimer les messages.');
         }
 
         const amount = parseInt(args[0]);
@@ -15,34 +17,36 @@ module.exports = {
             return message.reply('❌ Veuillez fournir un nombre valide de messages à supprimer (1-100).');
         }
 
-        const filterOptions = {
-            bots: args.includes('--bots'),
-            users: args.includes('--users'),
-            mentions: args.includes('--mentions'),
-            from: message.mentions.users.first()
-        };
-
         try {
-            const messages = await message.channel.messages.fetch({ limit: 100 });
-            let filteredMessages = messages;
+            // Récupérer les messages
+            let messages = await message.channel.messages.fetch({ limit: amount + 1 });
 
-            if (filterOptions.bots) {
-                filteredMessages = filteredMessages.filter(msg => msg.author.bot);
-            } else if (filterOptions.users) {
-                filteredMessages = filteredMessages.filter(msg => !msg.author.bot);
-            } else if (filterOptions.mentions) {
-                filteredMessages = filteredMessages.filter(msg => msg.mentions.users.size > 0);
-            } else if (filterOptions.from) {
-                filteredMessages = filteredMessages.filter(msg => msg.author.id === filterOptions.from.id);
+            // Appliquer les filtres
+            if (args.includes('--bots')) {
+                messages = messages.filter(msg => msg.author.bot);
+            } else if (args.includes('--users')) {
+                messages = messages.filter(msg => !msg.author.bot);
+            } else if (args.includes('--mentions')) {
+                messages = messages.filter(msg => msg.mentions.users.size > 0);
+            } else if (message.mentions.users.size > 0) {
+                const user = message.mentions.users.first();
+                messages = messages.filter(msg => msg.author.id === user.id);
             }
 
-            const messagesToDelete = filteredMessages.slice(0, amount);
+            // Convertir la collection en array pour pouvoir utiliser slice
+            const messagesToDelete = Array.from(messages.values()).slice(0, amount + 1);
+
+            // Supprimer les messages
             await message.channel.bulkDelete(messagesToDelete, true);
 
-            return message.reply(`✅ ${messagesToDelete.size} message(s) supprimé(s).`).then(msg => setTimeout(() => msg.delete(), 5000));
+            // Envoyer un message de confirmation qui s'auto-détruit
+            const reply = await message.channel.send(`✅ ${messagesToDelete.length - 1} message(s) ont été supprimés.`);
+            setTimeout(() => reply.delete().catch(() => {}), 3000);
+
         } catch (error) {
             console.error('Erreur dans la commande clear:', error);
-            return message.reply('❌ Une erreur est survenue lors de la suppression des messages.');
+            await message.channel.send('❌ Une erreur est survenue lors de la suppression des messages.')
+                .catch(() => {});
         }
     }
 };

@@ -1,11 +1,21 @@
-const { EmbedBuilder } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'banner',
-    description: 'Affiche la bannière d\'un utilisateur',
-    usage: '+banner [@utilisateur]',
-    permissions: 'Aucune',
+    description: 'Gère la bannière du serveur',
+    permissions: 'ManageGuild',
     async execute(message, args) {
+        // Vérifier uniquement les permissions du bot
+        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
+            return message.reply('❌ Je n\'ai pas la permission de gérer la bannière.');
+        }
+
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
+            return message.reply('❌ Vous n\'avez pas la permission de gérer la bannière.');
+        }
+
         const user = message.mentions.users.first() || message.author;
         
         try {

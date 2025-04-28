@@ -5,7 +5,7 @@ module.exports = {
     name: 'version',
     description: 'Affiche la version actuelle et les changements récents',
     usage: '+version [latest/all]',
-    permissions: 'Aucune',
+    permissions: null, // Permission nulle au lieu de 'Aucune'
     async execute(message, args) {
         const option = args[0]?.toLowerCase();
 

@@ -1,61 +1,67 @@
 const fs = require('fs');
 const path = require('path');
-const maintenanceFile = path.join(__dirname, '../data/maintenance.json');
 const isOwner = require('../utils/isOwner');
+
+// Définir le chemin du fichier
+const dataPath = path.join(__dirname, '../data');
+const maintenanceFile = path.join(dataPath, 'maintenance.json');
+
+// Créer le dossier data s'il n'existe pas
+if (!fs.existsSync(dataPath)) {
+    fs.mkdirSync(dataPath, { recursive: true });
+}
+
+// Initialiser le fichier maintenance s'il n'existe pas
+if (!fs.existsSync(maintenanceFile)) {
+    fs.writeFileSync(maintenanceFile, JSON.stringify({
+        active: false,
+        reason: null,
+        timestamp: null
+    }, null, 4));
+}
 
 module.exports = {
     name: 'maintenance',
-    description: 'Active ou désactive le mode maintenance pour le bot.',
-    usage: '+maintenance <on/off/status>',
+    description: 'Active/désactive le mode maintenance',
+    usage: '+maintenance <on/off/status> [raison]',
     permissions: 'OwnerOnly',
-    variables: [
-        { name: 'on', description: 'Active le mode maintenance.' },
-        { name: 'off', description: 'Désactive le mode maintenance.' },
-        { name: 'status', description: 'Affiche l\'état actuel du mode maintenance.' }
-    ],
     async execute(message, args) {
+        // Cette commande est réservée aux owners uniquement
         if (!isOwner(message.author.id)) {
             return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
 
-        const mode = args[0]?.toLowerCase();
-        if (!['on', 'off', 'status'].includes(mode)) {
-            return message.reply('❌ Utilisation invalide. Exemple : `+maintenance on`, `+maintenance off`, ou `+maintenance status`.');
-        }
+        const subCommand = args[0]?.toLowerCase();
+        const maintenance = JSON.parse(fs.readFileSync(maintenanceFile, 'utf8'));
 
-        // Vérifier l'état actuel
-        const maintenanceData = fs.existsSync(maintenanceFile)
-            ? JSON.parse(fs.readFileSync(maintenanceFile, 'utf8'))
-            : { active: false };
-
-        if (mode === 'status') {
-            const statusMessage = maintenanceData.active
-                ? '⚠️ Le bot est actuellement en mode maintenance. Seules les commandes essentielles sont disponibles.'
-                : '✅ Le bot est actuellement en mode normal. Toutes les commandes sont disponibles.';
-            return message.reply(statusMessage);
-        }
-
-        // Activer ou désactiver le mode maintenance
-        const isActivating = mode === 'on';
-        if (maintenanceData.active === isActivating) {
-            return message.reply(
-                isActivating
-                    ? '⚠️ Le mode maintenance est déjà activé.'
-                    : '⚠️ Le mode maintenance est déjà désactivé.'
-            );
-        }
-
-        maintenanceData.active = isActivating;
         try {
-            fs.writeFileSync(maintenanceFile, JSON.stringify(maintenanceData, null, 4));
-            return message.reply(
-                isActivating
-                    ? '✅ Le mode maintenance est maintenant activé. Seules les commandes essentielles sont disponibles.'
-                    : '✅ Le mode maintenance est maintenant désactivé. Toutes les commandes sont disponibles.'
-            );
+            switch (subCommand) {
+                case 'on':
+                    maintenance.active = true;
+                    maintenance.reason = args.slice(1).join(' ') || 'Aucune raison spécifiée';
+                    maintenance.timestamp = Date.now();
+                    fs.writeFileSync(maintenanceFile, JSON.stringify(maintenance, null, 4));
+                    return message.reply('✅ Mode maintenance activé.');
+
+                case 'off':
+                    maintenance.active = false;
+                    maintenance.reason = null;
+                    maintenance.timestamp = null;
+                    fs.writeFileSync(maintenanceFile, JSON.stringify(maintenance, null, 4));
+                    return message.reply('✅ Mode maintenance désactivé.');
+
+                case 'status':
+                    const status = maintenance.active
+                        ? `⚠️ Le bot est en maintenance.\nRaison: ${maintenance.reason}\nDepuis: <t:${Math.floor(maintenance.timestamp / 1000)}:R>`
+                        : '✅ Le bot n\'est pas en maintenance.';
+                    return message.reply(status);
+
+                default:
+                    return message.reply('❌ Usage: `+maintenance <on/off/status> [raison]`');
+            }
         } catch (error) {
-            console.error('Erreur lors de la mise à jour du fichier maintenance.json:', error);
-            return message.reply('❌ Une erreur est survenue lors de la mise à jour du mode maintenance.');
+            console.error('Erreur maintenance:', error);
+            message.reply('❌ Une erreur est survenue.');
         }
     }
 };

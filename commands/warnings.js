@@ -1,5 +1,5 @@
-const fs = require('fs');
-const warningsFile = './warnings.json';
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'warnings',
@@ -10,13 +10,14 @@ module.exports = {
         { name: '@utilisateur', description: 'Mention de l\'utilisateur pour voir ses avertissements.' }
     ],
     async execute(message, args) {
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+            return message.reply('❌ Vous n\'avez pas la permission de voir les avertissements.');
+        }
+
         const user = message.mentions.users.first();
         if (!user) {
             return message.reply('❌ Vous devez mentionner un utilisateur pour voir ses avertissements.');
-        }
-
-        if (!message.member.hasPermission('MANAGE_MESSAGES')) {
-            return message.reply('❌ Vous n\'avez pas la permission de voir les avertissements des utilisateurs.');
         }
 
         try {

@@ -1,10 +1,9 @@
 const { PermissionsBitField } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'case',
-    description: 'Gère les cas de modération',
+    description: 'Affiche les informations d\'un cas de modération',
     usage: '+case <view/edit/delete> <ID>',
     permissions: 'ManageMessages',
     variables: [
@@ -13,6 +12,11 @@ module.exports = {
         { name: 'delete', description: 'Supprime un cas' }
     ],
     async execute(message, args) {
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ViewAuditLog)) {
+            return message.reply('❌ Vous n\'avez pas la permission de voir les cas de modération.');
+        }
+
         const casesPath = path.join(__dirname, '../data/cases.json');
         const cases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
         const caseId = args[0];

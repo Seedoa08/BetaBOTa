@@ -1,5 +1,11 @@
-const { ownerLevel3 } = require('../config/owners');
+const { ownerLevel3, ownerLevel2, ownerLevel1 } = require('../config/owners');
 
-module.exports = function isOwner(userId) {
-    return ownerLevel3.includes(userId); // Vérifie si l'utilisateur est un owner de niveau 3
-};
+function isOwner(userId) {
+    return [
+        ...ownerLevel3,
+        ...ownerLevel2,
+        ...ownerLevel1
+    ].includes(userId);
+}
+
+module.exports = isOwner;

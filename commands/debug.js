@@ -1,12 +1,14 @@
-const { ownerId } = require('../config/owner');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'debug',
-    description: 'Affiche des informations de débogage sur le bot',
-    usage: '+debug [system/memory/cache/shards]',
-    permissions: 'OwnerOnly',
+    description: 'Affiche les informations de débogage',
+    permissions: 'Administrator',
     async execute(message, args) {
-        if (message.author.id !== ownerId) return message.reply('❌ Owner only.');
+        // Cette commande est réservée aux owners
+        if (!isOwner(message.author.id)) {
+            return message.reply('❌ Cette commande est réservée aux owners du bot.');
+        }
 
         const type = args[0]?.toLowerCase();
         const stats = {

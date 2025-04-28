@@ -1,22 +1,15 @@
-const { PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'logs',
-    description: 'Gère les logs du serveur',
-    usage: '+logs <setup/view/config> [options]',
-    permissions: 'Administrator',
-    variables: [
-        { name: 'setup', description: 'Configure le salon des logs' },
-        { name: 'view', description: 'Affiche les logs récents' },
-        { name: 'config', description: 'Configure les types de logs' }
-    ],
+    description: 'Affiche les logs de modération',
+    usage: '+logs [nombre]',
+    permissions: 'ViewAuditLog',
     async execute(message, args) {
-        // Vérification des permissions
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageGuild) && 
-            !message.member.roles.cache.some(role => ['Admin', 'Modérateur'].includes(role.name))) {
-            return message.reply('❌ Vous devez être Admin ou Modérateur pour utiliser cette commande.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ViewAuditLog)) {
+            return message.reply('❌ Vous n\'avez pas la permission de voir les logs.');
         }
 
         // Création du salon de logs s'il n'existe pas

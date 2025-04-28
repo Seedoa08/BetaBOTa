@@ -1,11 +1,17 @@
-const { PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'modconfig',
-    description: 'Configure les paramètres de modération',
+    description: 'Configure la modération',
     usage: '+modconfig',
     permissions: 'Administrator',
     async execute(message, args) {
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
+        }
+
         const settings = {
             automod: true,
             spamProtection: true,

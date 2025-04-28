@@ -1,9 +1,9 @@
 const { PermissionsBitField } = require('discord.js');
-const RaidDetection = require('../utils/raidDetection');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'raid-mode',
-    description: 'Active/désactive le mode anti-raid avec des paramètres personnalisés',
+    description: 'Active/désactive le mode raid',
     usage: '+raid-mode <on/off> [--strict] [--lockdown]',
     permissions: 'Administrator',
     variables: [
@@ -11,9 +11,9 @@ module.exports = {
         { name: '--lockdown', description: 'Verrouille tous les canaux en cas de raid' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator) && 
-            message.author.id !== message.guild.ownerId) {
-            return message.reply('❌ Cette commande nécessite les permissions Administrateur.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
         }
 
         const action = args[0]?.toLowerCase();

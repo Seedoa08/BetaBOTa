@@ -1,18 +1,15 @@
 const { PermissionsBitField } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
 const isOwner = require('../utils/isOwner');
-
-const settingsFile = path.join(__dirname, '../data/settings.json');
 
 module.exports = {
     name: 'settings',
-    description: 'Configure les paramètres du serveur',
-    usage: '+settings <view/edit/reset/help>',
+    description: 'Configure les paramètres du bot',
+    usage: '+settings <view/edit/reset>',
     permissions: 'Administrator',
     async execute(message, args) {
+        // Bypass des permissions pour les owners
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
+            return message.reply('❌ Vous devez être administrateur pour modifier les paramètres.');
         }
 
         const subCommand = args[0]?.toLowerCase();

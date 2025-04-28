@@ -1,15 +1,14 @@
-const { ownerId } = require('../config/owner');
-const fs = require('fs');
-const path = require('path');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'blacklist',
-    description: 'Gère la liste noire des utilisateurs bannis du bot',
-    usage: '+blacklist <add/remove/list> <userID>',
-    permissions: 'OwnerOnly',
+    description: 'Gère la liste noire des utilisateurs',
+    permissions: 'Administrator',
     async execute(message, args) {
-        if (message.author.id !== ownerId) {
-            return message.reply('❌ Cette commande est réservée au propriétaire du bot.');
+        // Les commandes de blacklist sont réservées uniquement aux owners
+        if (!isOwner(message.author.id)) {
+            return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
 
         const blacklistPath = path.join(__dirname, '../data/blacklist.json');

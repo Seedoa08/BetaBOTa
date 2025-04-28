@@ -1,13 +1,20 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'modpanel',
-    description: 'Affiche un panneau de contrôle pour la modération',
+    description: 'Affiche le panneau de modération',
     usage: '+modpanel',
     permissions: 'Administrator',
-    async execute(message) {
+    async execute(message, args) {
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
+        }
+
         const panel = {
             embeds: [{
+
                 color: 0x0099ff,
                 title: '🛡️ Panneau de Modération',
                 description: 'Utilisez les boutons ci-dessous pour effectuer des actions rapides.',

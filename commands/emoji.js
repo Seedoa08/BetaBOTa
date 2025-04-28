@@ -1,8 +1,9 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'emoji',
-    description: 'Gère les emojis du serveur',
+    description: 'Gère les émojis du serveur',
     usage: '+emoji <add/remove/list> [nom] [url]',
     permissions: 'ManageEmojisAndStickers',
     variables: [
@@ -11,8 +12,9 @@ module.exports = {
         { name: 'list', description: 'Liste tous les emojis' }
     ],
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageEmojisAndStickers)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les emojis.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageEmojisAndStickers)) {
+            return message.reply('❌ Vous n\'avez pas la permission de gérer les émojis.');
         }
 
         const subCommand = args[0]?.toLowerCase();

@@ -1,13 +1,15 @@
 const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'nuke',
-    description: 'Recrée un salon à zéro (supprime tout l\'historique)',
+    description: 'Supprime et recrée un salon',
     usage: '+nuke',
     permissions: 'ManageChannels',
     async execute(message, args) {
-        if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les salons.');
+        // Bypass des permissions pour les owners
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+            return message.reply('❌ Vous n\'avez pas la permission de supprimer des salons.');
         }
 
         // Demande de confirmation

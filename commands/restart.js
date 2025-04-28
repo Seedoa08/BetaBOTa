@@ -1,16 +1,14 @@
-const { exec } = require('child_process');
-const fs = require('fs');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'restart',
-    description: 'Redémarre le bot.',
+    description: 'Redémarre le bot',
     usage: '+restart',
     permissions: 'OwnerOnly',
-    async execute(message) {
-        const ownerId = '1061373376767201360'; // Remplacez par votre ID
-
-        if (message.author.id !== ownerId) {
-            return message.reply('❌ Cette commande est réservée à l\'owner du bot.');
+    async execute(message, args) {
+        // Commande réservée aux owners uniquement
+        if (!isOwner(message.author.id)) {
+            return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
 
         try {

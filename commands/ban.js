@@ -1,12 +1,9 @@
 const { PermissionsBitField } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-const userResolver = require('../utils/userResolver');
 const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'ban',
-    description: 'Bannit un utilisateur du serveur.',
+    description: 'Bannit un utilisateur du serveur',
     usage: '+ban @utilisateur/ID [raison] [--silent] [--del [jours]]',
     permissions: 'BanMembers',
     variables: [
@@ -16,12 +13,12 @@ module.exports = {
         { name: '--del [jours]', description: 'Supprimer les messages des X derniers jours (1-7).' }
     ],
     async execute(message, args) {
-        // Vérifier si le bot a la permission de bannir
+        // Vérifier uniquement les permissions du bot
         if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.BanMembers)) {
-            return message.reply('❌ Je n\'ai pas la permission de bannir des membres. Veuillez vérifier mes permissions.');
+            return message.reply('❌ Je n\'ai pas la permission de bannir des membres.');
         }
 
-        // Vérifier si l'utilisateur est un owner du bot
+        // Bypass des permissions pour les owners
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
             return message.reply('❌ Vous n\'avez pas la permission de bannir des membres.');
         }
@@ -38,8 +35,10 @@ module.exports = {
         }
 
         const user = await userResolver(message.client, userIdentifier);
-        if (!user) {
-            return message.reply('❌ Utilisateur introuvable. Vérifiez l\'ID ou la mention.');
+        
+        // Vérifier si l'utilisateur ciblé est un owner
+        if (isOwner(user.id)) {
+            return message.reply('❌ Vous ne pouvez pas bannir un owner du bot.');
         }
 
         if (user.id === message.author.id) {

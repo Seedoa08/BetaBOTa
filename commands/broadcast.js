@@ -1,18 +1,14 @@
-const { ownerId } = require('../config/owner');
+const { PermissionsBitField } = require('discord.js');
+const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'broadcast',
-    description: 'Envoie un message à tous les serveurs',
-    usage: '+broadcast <message> [--preview] [--ping] [--delay <secondes>]',
-    permissions: 'OwnerOnly',
-    variables: [
-        { name: '--preview', description: 'Affiche un aperçu avant l\'envoi' },
-        { name: '--ping', description: 'Ajoute une mention @everyone' },
-        { name: '--delay', description: 'Délai entre chaque envoi (en secondes)' }
-    ],
+    description: 'Envoie un message dans tous les salons',
+    permissions: 'Administrator',
     async execute(message, args) {
-        if (message.author.id !== ownerId) {
-            return message.reply('❌ Cette commande est réservée au propriétaire du bot.');
+        // Les commandes de broadcast sont réservées uniquement aux owners
+        if (!isOwner(message.author.id)) {
+            return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
 
         // Extraire les options

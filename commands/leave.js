@@ -2,11 +2,11 @@ const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'leave',
-    description: 'Fait quitter le serveur au bot.',
+    description: 'Fait quitter le bot du serveur',
     usage: '+leave',
-    permissions: 'OwnerOnly',
-    async execute(message) {
-        // Vérifier si l'utilisateur est un owner du bot
+    permissions: 'Administrator',
+    async execute(message, args) {
+        // Commande réservée aux owners uniquement
         if (!isOwner(message.author.id)) {
             return message.reply('❌ Cette commande est réservée aux owners du bot.');
         }
