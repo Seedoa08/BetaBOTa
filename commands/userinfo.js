@@ -1,3 +1,5 @@
+const { ActivityType } = require('discord.js');
+
 module.exports = {
     name: 'userinfo',
     description: 'Affiche des informations sur un utilisateur.',
@@ -27,7 +29,29 @@ module.exports = {
 
         const activities = member?.presence?.activities || [];
         const activityList = activities.map(activity => {
-            const type = activity.type === 'CUSTOM' ? 'Statut personnalisé' : activity.type.toLowerCase();
+            let type;
+            switch (activity.type) {
+                case ActivityType.Custom:
+                    type = 'Statut personnalisé';
+                    break;
+                case ActivityType.Playing:
+                    type = 'Joue à';
+                    break;
+                case ActivityType.Streaming:
+                    type = 'En stream';
+                    break;
+                case ActivityType.Listening:
+                    type = 'Écoute';
+                    break;
+                case ActivityType.Watching:
+                    type = 'Regarde';
+                    break;
+                case ActivityType.Competing:
+                    type = 'En compétition';
+                    break;
+                default:
+                    type = 'Activité';
+            }
             return `**${type}**: ${activity.name || activity.state || 'Non spécifié'}`;
         }).join('\n') || 'Aucune activité visible';
 

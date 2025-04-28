@@ -1,4 +1,4 @@
-const { prefix } = require('../config.json'); // Ajouter l'import pour le préfixe
+const { PermissionsBitField } = require('discord.js');
 const isOwner = require('../utils/isOwner');
 
 module.exports = {
@@ -6,6 +6,12 @@ module.exports = {
     description: 'Affiche toutes les commandes disponibles',
     permissions: 'Administrator',
     async execute(message, args) {
+        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply('❌ Vous devez être administrateur pour voir toutes les commandes.');
+        }
+
+        const prefix = global.botConfig.prefix; // Utilise la config globale
+
         // Récupérer toutes les commandes
         const commands = message.client.commands.map(cmd => ({
             name: cmd.name,
