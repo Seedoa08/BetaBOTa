@@ -1,8 +1,12 @@
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { prefix, token } = require('./config.json'); // Charger le token depuis config.json
-const isOwner = require('./utils/isOwner'); // Ajouter cet import
+
+// Charger la configuration
+const config = {
+    prefix: "+",
+    token: "MTM0OTc4NTYwMzMxMDYxNjYwNw.GNu8W2.5zsrgBWFUKrxvyanqZnBHOOk9s7QUKkLWvcTY0"
+};
 
 // Créer le client Discord.js
 const client = new Client({
@@ -41,9 +45,8 @@ client.once('ready', () => {
 
 // Événement messageCreate simplifié
 client.on('messageCreate', async (message) => {
-    if (message.author.bot || !message.content.startsWith(prefix)) return;
-
-    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    if (message.author.bot || !message.content.startsWith(config.prefix)) return;
+    const args = message.content.slice(config.prefix.length).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
 
     const command = client.commands.get(commandName);
@@ -97,4 +100,4 @@ client.on('messageCreate', async (message) => {
 process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
 
-client.login(token);
+client.login(config.token);
