@@ -1,12 +1,16 @@
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const isOwner = require('./utils/isOwner');
 
-// Charger la configuration
+// Configuration globale
 const config = {
     prefix: "+",
     token: "MTM0OTc4NTYwMzMxMDYxNjYwNw.GNu8W2.5zsrgBWFUKrxvyanqZnBHOOk9s7QUKkLWvcTY0"
 };
+
+// Rendre la config accessible globalement
+global.botConfig = config;
 
 // Créer le client Discord.js
 const client = new Client({

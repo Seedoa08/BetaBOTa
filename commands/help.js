@@ -1,6 +1,8 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { prefix } = require('../config.json');
 const isOwner = require('../utils/isOwner');
+
+// Utiliser la config globale au lieu d'importer le fichier
+const prefix = global.botConfig.prefix;
 
 module.exports = {
     name: 'help',
