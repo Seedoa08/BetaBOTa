@@ -3,8 +3,13 @@ const fs = require('fs');
 const path = require('path');
 const isOwner = require('./utils/isOwner');
 
-// Configuration globale
-const config = require('./config.json');
+// Configuration globale intégrée
+const config = {
+    prefix: "+",
+    token: process.env.TOKEN || "MTM0OTc4NTYwMzMxMDYxNjYwNw.GNu8W2.5zsrgBWFUKrxvyanqZnBHOOk9s7QUKkLWvcTY0",
+    owners: ["VOTRE_ID"],
+    version: "1.2.3"
+};
 
 // Rendre la config accessible globalement
 global.botConfig = config;
