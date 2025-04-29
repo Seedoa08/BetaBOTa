@@ -1,7 +1,7 @@
 {
     "french": {
         "insults": [
-            "connard", "connasse", "pute", "salope", "batard", "fdp", "ntm", "tg", 
+            "connasse", "pute", "salope", "batard", "fdp", "ntm", "tg", 
             "enculé", "merde", "pd", "nique", "bite", "ptn", "putain", "petasse",
             "con", "conne", "ta gueule", "salaud", "pede", "débile", "cretin"
         ],
@@ -17,14 +17,14 @@
     "english": {
         "insults": [
             "fuck", "shit", "bitch", "asshole", "cunt", "whore", "slut", "dick",
-            "pussy", "stfu", "kys", "retard", "idiot", "moron", "bastard"
+            "pussy", "stfu", "retard", "idiot", "moron", "bastard"
         ],
         "discriminations": [
             "nigger", "nigga", "faggot", "fag", "dyke", "tranny", "kike",
             "chink", "spic", "wetback", "raghead"
         ],
         "threats": [
-            "kill yourself", "die", "kms", "kys", "kill you", "murder you",
+            "kill yourself", "die", "kms", "kill you", "murder you",
             "end you", "find you"
         ]
     },

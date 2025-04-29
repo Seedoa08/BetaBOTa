@@ -4,11 +4,8 @@ const isOwner = require('../utils/isOwner');
 module.exports = {
     name: 'lock',
     description: 'Verrouille un canal',
-    usage: '+lock [message]',
-    permissions: 'ManageChannels',
-    variables: [
-        { name: '[message]', description: 'Message à afficher après le verrouillage (facultatif).' }
-    ],
+    usage: '+lock [#canal] [raison]',
+    category: 'Modération',
     async execute(message, args) {
         // Bypass des permissions pour les owners
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {

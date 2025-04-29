@@ -1,28 +1,19 @@
 module.exports = {
     colors: {
-        primary: 0x7289DA,    // Bleu Discord
-        success: 0x43B581,    // Vert
-        error: 0xF04747,      // Rouge
-        warning: 0xFAA61A,    // Orange
-        info: 0x00B0F4        // Bleu clair
+        primary: 0x0099ff,
+        success: 0x00ff00,
+        error: 0xff0000,
+        warning: 0xff9900
     },
     emojis: {
         success: '✅',
         error: '❌',
         warning: '⚠️',
         info: 'ℹ️',
-        loading: '⏳',
-        moderation: '🛡️',
-        member: '👤',
         members: '👥',
-        settings: '⚙️',
-        time: '⏰',
-        channel: '📺',
-        server: '🏠'
+        time: '⏰'
     },
     banners: {
-        welcome: 'https://imgur.com/your-welcome-banner.png',
-        goodbye: 'https://imgur.com/your-goodbye-banner.png',
-        moderation: 'https://imgur.com/your-moderation-banner.png'
+        welcome: 'https://tenor.com/view/welcome-gif-21819408?utm_source=share-button&utm_medium=Social&utm_content=pinterest' // Remplacez par votre URL de bannière
     }
 };

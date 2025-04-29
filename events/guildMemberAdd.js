@@ -1,31 +1,37 @@
-const RaidDefense = require('../utils/RaidDefense');
-const raidDefense = new RaidDefense();
+const fs = require('fs');
+const path = require('path');
 
-module.exports = {
-    name: 'guildMemberAdd',
-    async execute(member) {
-        // Vérification anti-raid
-        const canJoin = await raidDefense.processJoin(member);
-        if (!canJoin) return;
+const configPath = path.join(__dirname, '../data/welcomeConfig.json');
 
-        // Vérification supplémentaire
-        const suspiciousPatterns = [
-            /discord\.gg\//i,
-            /discord\.com\/invite/i,
-            /nitro/i
-        ];
+module.exports = async (member) => {
+    if (!fs.existsSync(configPath)) return;
+    
+    try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (!config.enabled || !config.channelId) return;
 
-        if (suspiciousPatterns.some(pattern => pattern.test(member.user.username))) {
-            await member.guild.channels.cache
-                .find(ch => ch.name === 'mod-logs')
-                ?.send({
-                    embeds: [{
-                        color: 0xff0000,
-                        title: '⚠️ Membre suspect détecté',
-                        description: `Nom d'utilisateur suspect: ${member.user.tag}`,
-                        timestamp: new Date()
-                    }]
-                });
-        }
+        const channel = member.guild.channels.cache.get(config.channelId);
+        if (!channel) return;
+
+        const welcomeEmbed = {
+            color: parseInt(config.color?.replace('#', '') || '0099ff', 16),
+            title: '👋 Bienvenue !',
+            description: config.message
+                .replace('{user}', member.toString())
+                .replace('{server}', member.guild.name)
+                .replace('{count}', member.guild.memberCount),
+            thumbnail: {
+                url: member.user.displayAvatarURL({ dynamic: true })
+            },
+            footer: {
+                text: config.footer.replace('{date}', new Date().toLocaleDateString()),
+                icon_url: member.guild.iconURL({ dynamic: true })
+            },
+            timestamp: new Date()
+        };
+
+        await channel.send({ embeds: [welcomeEmbed] });
+    } catch (error) {
+        console.error('Erreur welcome:', error);
     }
 };

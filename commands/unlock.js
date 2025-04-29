@@ -4,7 +4,8 @@ const isOwner = require('../utils/isOwner');
 module.exports = {
     name: 'unlock',
     description: 'Déverrouille un canal',
-    usage: '+unlock',
+    usage: '+unlock [#canal]',
+    category: 'Modération',
     permissions: 'ManageChannels',
     variables: [],
     async execute(message) {

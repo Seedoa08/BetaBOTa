@@ -1,45 +1,112 @@
-const { PermissionsBitField } = require('discord.js');
-const isOwner = require('../utils/isOwner');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
     name: 'helpall',
     description: 'Affiche toutes les commandes disponibles',
-    permissions: 'Administrator',
-    async execute(message, args) {
-        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Vous devez être administrateur pour voir toutes les commandes.');
+    usage: '+helpall',
+    category: 'Utilitaire',
+    permissions: null,
+    async execute(message) {
+        const commands = [...message.client.commands.values()];
+        const commandsPerPage = 10;
+        const pages = [];
+        
+        // Trier les commandes par ordre alphabétique
+        commands.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Diviser les commandes en pages
+        for (let i = 0; i < commands.length; i += commandsPerPage) {
+            const currentCommands = commands.slice(i, i + commandsPerPage);
+            const embed = new EmbedBuilder()
+                .setColor(0x0099ff)
+                .setTitle('📖 Liste complète des commandes')
+                .setDescription(currentCommands.map(cmd => {
+                    return [
+                        `**${cmd.name}**`,
+                        `Description: ${cmd.description || 'Aucune description'}`,
+                        `Usage: \`${cmd.usage || `+${cmd.name}`}\``,
+                        `Permission: ${cmd.permissions || 'Aucune'}`,
+                        ''
+                    ].join('\n');
+                }).join('\n'))
+                .setFooter({ 
+                    text: `Page ${Math.floor(i / commandsPerPage) + 1}/${Math.ceil(commands.length / commandsPerPage)}`,
+                    iconURL: message.author.displayAvatarURL({ dynamic: true })
+                })
+                .setTimestamp();
+            
+            pages.push(embed);
         }
 
-        const prefix = global.botConfig.prefix; // Utilise la config globale
+        let currentPage = 0;
 
-        // Récupérer toutes les commandes
-        const commands = message.client.commands.map(cmd => ({
-            name: cmd.name,
-            description: cmd.description || 'Pas de description disponible.',
-            usage: cmd.usage || 'Non spécifié'
-        }));
-
-        // Créer un embed pour afficher toutes les commandes
-        const helpEmbed = {
-            color: 0x0099ff,
-            title: '📜 Liste complète des commandes',
-            description: `Utilisez \`${prefix}help <commande>\` pour plus d'informations sur une commande spécifique.`,
-            fields: commands.map(cmd => ({
-                name: `\`${prefix}${cmd.name}\``,
-                value: `${cmd.description}\n**Usage:** \`${cmd.usage}\``
-            })),
-            footer: {
-                text: `Demandé par ${message.author.tag}`,
-                icon_url: message.author.displayAvatarURL({ dynamic: true })
-            },
-            timestamp: new Date()
+        const getButtons = (currentPage) => {
+            return new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('helpall_first')
+                    .setLabel('⏪')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(currentPage === 0),
+                new ButtonBuilder()
+                    .setCustomId('helpall_prev')
+                    .setLabel('◀️')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(currentPage === 0),
+                new ButtonBuilder()
+                    .setCustomId('helpall_next')
+                    .setLabel('▶️')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(currentPage === pages.length - 1),
+                new ButtonBuilder()
+                    .setCustomId('helpall_last')
+                    .setLabel('⏩')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(currentPage === pages.length - 1)
+            );
         };
 
-        try {
-            await message.channel.send({ embeds: [helpEmbed] });
-        } catch (error) {
-            console.error('Erreur dans la commande helpall:', error);
-            message.reply('❌ Une erreur est survenue lors de l\'affichage des commandes.');
-        }
+        const helpMessage = await message.reply({
+            embeds: [pages[currentPage]],
+            components: [getButtons(currentPage)]
+        });
+
+        const filter = i => i.user.id === message.author.id && i.message.id === helpMessage.id;
+        const collector = helpMessage.createMessageComponentCollector({
+            filter,
+            time: 60000
+        });
+
+        collector.on('collect', async i => {
+            try {
+                if (i.user.id !== message.author.id) {
+                    await i.reply({ 
+                        content: '❌ Ces boutons ne sont pas pour vous!', 
+                        ephemeral: true 
+                    });
+                    return;
+                }
+
+                switch (i.customId) {
+                    case 'helpall_first': currentPage = 0; break;
+                    case 'helpall_prev': currentPage = Math.max(0, currentPage - 1); break;
+                    case 'helpall_next': currentPage = Math.min(pages.length - 1, currentPage + 1); break;
+                    case 'helpall_last': currentPage = pages.length - 1; break;
+                }
+
+                const newRow = getButtons(currentPage);
+
+                await i.deferUpdate();
+                await i.message.edit({
+                    embeds: [pages[currentPage]],
+                    components: [newRow]
+                });
+            } catch (error) {
+                console.error('Erreur interaction:', error);
+            }
+        });
+
+        collector.on('end', () => {
+            helpMessage.edit({ components: [] }).catch(() => {});
+        });
     }
 };

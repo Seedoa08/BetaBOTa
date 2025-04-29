@@ -1,6 +1,8 @@
+const BetterEmbed = require('../utils/embedBuilder');
+
 module.exports = {
     name: 'serverinfo',
-    description: 'Affiche des informations détaillées sur le serveur.',
+    description: 'Affiche les informations détaillées sur le serveur.',
     usage: '+serverinfo',
     category: 'Utilitaire',
     permissions: null, // Aucune permission requise
@@ -28,12 +30,12 @@ module.exports = {
         const staticEmojis = guild.emojis.cache.filter(emoji => !emoji.animated).size;
         const stickers = guild.stickers.cache.size;
 
-        const serverInfoEmbed = {
-            color: 0x0099ff,
-            title: `📊 Informations sur ${guild.name}`,
-            description: `${guild.description || '*Aucune description*'}`,
-            thumbnail: { url: guild.iconURL({ dynamic: true, size: 512 }) },
-            fields: [
+        const serverInfoEmbed = new BetterEmbed()
+            .setInfoStyle()
+            .setTitle(`📊 Informations sur ${guild.name}`)
+            .setDescription(guild.description || '*Aucune description*')
+            .setThumbnail(guild.iconURL({ dynamic: true, size: 512 }))
+            .addFields(
                 {
                     name: '👑 Informations générales',
                     value: [
@@ -80,29 +82,21 @@ module.exports = {
                     ].join('\n'),
                     inline: true
                 }
-            ],
-            image: guild.bannerURL({ size: 1024 }) ? { url: guild.bannerURL({ size: 1024 }) } : null,
-            footer: {
-                text: `ID: ${guild.id} • Demandé par ${message.author.tag}`,
-                icon_url: message.author.displayAvatarURL({ dynamic: true })
-            },
-            timestamp: new Date()
-        };
+            )
+            .setImage(guild.bannerURL({ size: 1024 }) ? guild.bannerURL({ size: 1024 }) : null)
+            .setFooter(`ID: ${guild.id} • Demandé par ${message.author.tag}`, message.author.displayAvatarURL({ dynamic: true }))
+            .setTimestamp();
 
         // Supprimer la section des salons "mis en avant" car le flag `FEATURED` est invalide
         // Vous pouvez ajouter d'autres informations pertinentes ici si nécessaire
 
         // Statistiques de sécurité
-        serverInfoEmbed.fields.push({
-            name: '🛡️ Sécurité',
-            value: [
-                `**2FA requis:** ${guild.mfaLevel === 1 ? '✅' : '❌'}`,
-                `**Filtre explicite:** ${guild.explicitContentFilter}`,
-                `**Notifications par défaut:** ${guild.defaultMessageNotifications}`,
-                `**Modération activée:** ${guild.features.includes('COMMUNITY') ? '✅' : '❌'}`
-            ].join('\n'),
-            inline: false
-        });
+        serverInfoEmbed.addField('🛡️ Sécurité', [
+            `**2FA requis:** ${guild.mfaLevel === 1 ? '✅' : '❌'}`,
+            `**Filtre explicite:** ${guild.explicitContentFilter}`,
+            `**Notifications par défaut:** ${guild.defaultMessageNotifications}`,
+            `**Modération activée:** ${guild.features.includes('COMMUNITY') ? '✅' : '❌'}`
+        ].join('\n'), false);
 
         await message.channel.send({ embeds: [serverInfoEmbed] });
     }

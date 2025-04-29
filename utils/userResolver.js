@@ -6,17 +6,14 @@
  */
 async function userResolver(client, identifier) {
     try {
-        // Nettoyer l'identifiant des mentions
         identifier = identifier.replace(/[<@!>]/g, '');
-
-        // Essayer de récupérer par ID
+        
         try {
             return await client.users.fetch(identifier);
         } catch {
-            // Continuer si non trouvé par ID
+            // Continue si non trouvé par ID
         }
 
-        // Chercher par tag si contient #
         if (identifier.includes('#')) {
             const [username, discriminator] = identifier.split('#');
             return client.users.cache.find(u => 
@@ -24,7 +21,6 @@ async function userResolver(client, identifier) {
             );
         }
 
-        // Chercher par nom d'utilisateur
         return client.users.cache.find(u => u.username === identifier);
     } catch (error) {
         console.error('Erreur dans userResolver:', error);

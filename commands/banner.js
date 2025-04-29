@@ -1,43 +1,47 @@
-const { PermissionsBitField } = require('discord.js');
-const isOwner = require('../utils/isOwner');
+const { PermissionsBitField, EmbedBuilder } = require('discord.js');
 
 module.exports = {
     name: 'banner',
-    description: 'Gère la bannière du serveur',
-    permissions: 'ManageGuild',
+    description: 'Affiche la bannière du serveur ou d\'un utilisateur',
+    usage: '+banner [user]',
+    category: 'Utilitaire',
+    permissions: null,
     async execute(message, args) {
-        // Vérifier uniquement les permissions du bot
-        if (!message.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
-            return message.reply('❌ Je n\'ai pas la permission de gérer la bannière.');
-        }
-
-        // Bypass des permissions pour les owners
-        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer la bannière.');
-        }
-
-        const user = message.mentions.users.first() || message.author;
-        
         try {
-            const fetchedUser = await user.fetch(true);
-            const banner = fetchedUser.bannerURL({ size: 4096, dynamic: true });
+            if (args[0]?.toLowerCase() === 'server') {
+                const banner = message.guild.bannerURL({ size: 4096, dynamic: true });
+                if (!banner) {
+                    return message.reply('❌ Ce serveur n\'a pas de bannière.');
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`Bannière de ${message.guild.name}`)
+                    .setColor(0x0099FF)
+                    .setImage(banner)
+                    .setTimestamp();
+
+                await message.reply({ embeds: [embed] });
+                return;
+            }
+
+            const user = message.mentions.users.first() || message.author;
+            const member = await message.guild.members.fetch(user.id);
+            const banner = user.bannerURL({ size: 4096, dynamic: true });
 
             if (!banner) {
-                return message.reply(`${user.tag} n'a pas de bannière.`);
+                return message.reply('❌ Cet utilisateur n\'a pas de bannière.');
             }
 
             const embed = new EmbedBuilder()
-                .setColor(0x0099ff)
                 .setTitle(`Bannière de ${user.tag}`)
+                .setColor(member.displayHexColor || 0x0099FF)
                 .setImage(banner)
-                .setFooter({ 
-                    text: `Demandé par ${message.author.tag}`,
-                    iconURL: message.author.displayAvatarURL({ dynamic: true })
-                });
+                .setTimestamp();
 
             await message.reply({ embeds: [embed] });
+
         } catch (error) {
-            console.error('Erreur dans la commande banner:', error);
+            console.error('Erreur banner:', error);
             message.reply('❌ Une erreur est survenue lors de la récupération de la bannière.');
         }
     }

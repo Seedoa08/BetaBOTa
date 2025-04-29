@@ -1,57 +1,47 @@
-const changelogManager = require('../utils/changelogManager');
-const { version } = require('../package.json');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
     name: 'version',
-    description: 'Affiche la version actuelle et les changements récents',
-    usage: '+version [latest/all]',
-    permissions: null, // Permission nulle au lieu de 'Aucune'
-    async execute(message, args) {
-        const option = args[0]?.toLowerCase();
+    description: 'Affiche la version actuelle du bot',
+    usage: '+version',
+    permissions: null,
+    async execute(message) {
+        try {
+            const packagePath = path.join(__dirname, '../package.json');
+            const packageData = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
 
-        if (option === 'all') {
-            const changes = changelogManager.getAllChanges();
-            const allVersionsEmbed = {
+            const versionEmbed = {
                 color: 0x0099ff,
-                title: '📋 Historique des versions',
-                description: 'Liste complète des mises à jour',
-                fields: changes.map(v => ({
-                    name: `Version ${v.version} (${v.date})`,
-                    value: v.changes.map(c => `• ${c}`).join('\n')
-                })),
+                title: '🤖 Version du bot',
+                fields: [
+                    {
+                        name: 'Version actuelle',
+                        value: `${packageData.version}`,
+                        inline: true
+                    },
+                    {
+                        name: 'État',
+                        value: 'STABLE',
+                        inline: true
+                    },
+                    {
+                        name: 'Dernière mise à jour',
+                        value: `<t:${Math.floor(Date.now() / 1000)}:R>`,
+                        inline: true
+                    }
+                ],
                 footer: {
-                    text: `Version actuelle : ${version}`
+                    text: `Demandé par ${message.author.tag}`,
+                    icon_url: message.author.displayAvatarURL({ dynamic: true })
                 },
                 timestamp: new Date()
             };
-            
-            return message.channel.send({ embeds: [allVersionsEmbed] });
+
+            await message.channel.send({ embeds: [versionEmbed] });
+        } catch (error) {
+            console.error('Erreur commande version:', error);
+            message.reply('❌ Une erreur est survenue lors de la récupération de la version.');
         }
-
-        // Afficher la dernière version par défaut
-        const latest = changelogManager.getLatestChanges();
-        const versionEmbed = {
-            color: 0x00ff00,
-            title: `📦 Version ${version}`,
-            description: 'Dernière mise à jour du bot',
-            fields: [
-                {
-                    name: 'Date',
-                    value: latest.date,
-                    inline: true
-                },
-                {
-                    name: 'Changements',
-                    value: latest.changes.map(c => `• ${c}`).join('\n'),
-                    inline: false
-                }
-            ],
-            footer: {
-                text: 'Utilisez "+version all" pour voir l\'historique complet'
-            },
-            timestamp: new Date()
-        };
-
-        return message.channel.send({ embeds: [versionEmbed] });
     }
 };

@@ -4,6 +4,7 @@ module.exports = {
     name: 'info',
     description: 'Affiche des informations sur une commande spécifique.',
     usage: '+info <commande>',
+    category: 'Utilitaire',
     permissions: null, // Permission nulle pour accès public
     variables: [
         { name: 'commande', description: 'Nom de la commande pour voir ses informations.' }

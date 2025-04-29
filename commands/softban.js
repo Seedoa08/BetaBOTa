@@ -1,5 +1,7 @@
 const { PermissionsBitField } = require('discord.js');
+const ms = require('ms');
 const isOwner = require('../utils/isOwner');
+const userResolver = require('../utils/userResolver');
 
 module.exports = {
     name: 'softban',

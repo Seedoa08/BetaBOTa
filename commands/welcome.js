@@ -1,16 +1,67 @@
 const { PermissionsBitField } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 const isOwner = require('../utils/isOwner');
+
+const configPath = path.join(__dirname, '../data/welcomeConfig.json');
+const defaultConfig = {
+    enabled: false,
+    channelId: null,
+    message: "Bienvenue {user} sur {server} !\nTu es notre {count}ème membre !",
+    footer: "Rejoint le {date}",
+    color: "#0099ff",
+    embedTitle: "👋 Nouveau membre",
+    embedDescription: "Un nouveau membre vient de nous rejoindre !",
+    thumbnail: true,
+    showJoinDate: true
+};
+
+function loadConfig() {
+    if (!fs.existsSync(configPath)) {
+        fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+        return defaultConfig;
+    }
+    try {
+        return JSON.parse(fs.readFileSync(configPath));
+    } catch (error) {
+        console.error('Erreur lors du chargement de la configuration welcome:', error);
+        return defaultConfig;
+    }
+}
+
+function sendWelcomeMessage(member, config) {
+    if (!config || !config.message) {
+        config = defaultConfig;
+    }
+
+    const welcomeChannel = member.guild.channels.cache.get(config.channelId);
+    if (!welcomeChannel) return;
+
+    const welcomeEmbed = {
+        color: parseInt(config.color?.replace('#', '') || '0099ff', 16),
+        title: config.embedTitle || defaultConfig.embedTitle,
+        description: (config.message || defaultConfig.message)
+            .replace('{user}', member.toString())
+            .replace('{server}', member.guild.name)
+            .replace('{count}', member.guild.memberCount),
+        thumbnail: config.thumbnail ? {
+            url: member.user.displayAvatarURL({ dynamic: true })
+        } : null,
+        footer: {
+            text: (config.footer || defaultConfig.footer).replace('{date}', new Date().toLocaleDateString()),
+            icon_url: member.guild.iconURL({ dynamic: true })
+        },
+        timestamp: new Date()
+    };
+
+    welcomeChannel.send({ embeds: [welcomeEmbed] }).catch(console.error);
+}
 
 module.exports = {
     name: 'welcome',
-    description: 'Configure le message de bienvenue',
-    usage: '+welcome <set/test/disable> [#canal]',
-    permissions: 'Administrator',
-    variables: [
-        { name: 'set', description: 'Configure le canal de bienvenue' },
-        { name: 'test', description: 'Teste le message de bienvenue' },
-        { name: 'disable', description: 'Désactive le système de bienvenue' }
-    ],
+    description: 'Configure le système de bienvenue',
+    usage: '+welcome <setup/config/test/toggle>',
+    permissions: 'ManageGuild',
     async execute(message, args) {
         // Bypass des permissions pour les owners
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
@@ -18,20 +69,7 @@ module.exports = {
         }
 
         const subCommand = args[0]?.toLowerCase();
-        const configPath = './welcomeConfig.json';
-
-        let welcomeConfig = {
-            enabled: false,
-            channelId: null,
-            guildId: message.guild.id,
-            message: "Bienvenue {user} sur **{server}** !\n\n🎮 Tu es notre {count}e membre\n📜 Lis le règlement pour accéder au serveur\n🎉 Passe un bon moment parmi nous !",
-            color: "#00ff00",
-            footer: "Rejoins-nous le {date}"
-        };
-
-        if (fs.existsSync(configPath)) {
-            welcomeConfig = JSON.parse(fs.readFileSync(configPath));
-        }
+        let welcomeConfig = loadConfig();
 
         switch (subCommand) {
             case 'set':
@@ -41,7 +79,6 @@ module.exports = {
                 }
                 welcomeConfig.enabled = true;
                 welcomeConfig.channelId = channel.id;
-                welcomeConfig.guildId = message.guild.id;
                 fs.writeFileSync(configPath, JSON.stringify(welcomeConfig, null, 4));
                 message.reply(`✅ Canal de bienvenue configuré sur ${channel}.`);
                 break;
@@ -65,42 +102,3 @@ module.exports = {
         }
     }
 };
-
-function sendWelcomeMessage(member, config) {
-    const welcomeChannel = member.guild.channels.cache.get(config.channelId);
-    if (!welcomeChannel) return;
-
-    const welcomeEmbed = {
-        color: theme.colors.success,
-        title: `${theme.emojis.members} Bienvenue sur ${member.guild.name} !`,
-        description: config.message
-            .replace('{user}', `${member}`)
-            .replace('{server}', member.guild.name)
-            .replace('{count}', member.guild.memberCount),
-        thumbnail: { 
-            url: member.user.displayAvatarURL({ dynamic: true, size: 256 }) 
-        },
-        image: { url: theme.banners.welcome },
-        fields: [
-            {
-                name: `${theme.emojis.time} Compte créé`,
-                value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
-                inline: true
-            },
-            {
-                name: `${theme.emojis.members} Membres`,
-                value: `${member.guild.memberCount}`,
-                inline: true
-            }
-        ],
-        footer: {
-            text: config.footer,
-            icon_url: member.guild.iconURL({ dynamic: true })
-        }
-    };
-
-    welcomeChannel.send({ embeds: [welcomeEmbed] }).catch(console.error);
-}
-
-// Exportez la fonction pour l'utiliser dans index.js
-module.exports.sendWelcomeMessage = sendWelcomeMessage;

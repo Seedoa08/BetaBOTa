@@ -1,71 +1,51 @@
-const { PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const isOwner = require('../utils/isOwner');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 
 module.exports = {
     name: 'ticket',
-    description: 'Gère le système de tickets',
-    usage: '+ticket <create/close>',
+    description: 'Crée un panel de tickets',
+    usage: '+ticket panel',
     permissions: 'ManageChannels',
     async execute(message, args) {
-        // Bypass des permissions pour les owners
-        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-            return message.reply('❌ Vous n\'avez pas la permission de gérer les tickets.');
+        if (!message.guild.members.me.permissions.has('ManageChannels')) {
+            return message.reply('❌ Je n\'ai pas la permission de gérer les salons.');
         }
 
-        const subCommand = args[0]?.toLowerCase();
-
-        switch (subCommand) {
-            case 'create':
-                try {
-                    const ticketChannel = await message.guild.channels.create({
-                        name: `ticket-${message.author.username}`,
-                        type: 0, // Text channel
-                        permissionOverwrites: [
-                            {
-                                id: message.guild.roles.everyone.id,
-                                deny: [PermissionsBitField.Flags.ViewChannel]
-                            },
-                            {
-                                id: message.author.id,
-                                allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
-                            }
-                        ]
-                    });
-
-                    const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('close-ticket')
-                            .setLabel('Fermer le ticket')
-                            .setStyle(ButtonStyle.Danger)
-                    );
-
-                    await ticketChannel.send({
-                        content: `🎫 Ticket créé pour <@${message.author.id}>`,
-                        components: [row]
-                    });
-
-                    message.reply(`✅ Votre ticket a été créé : <#${ticketChannel.id}>`);
-                } catch (error) {
-                    console.error('Erreur lors de la création du ticket:', error);
-                    message.reply('❌ Une erreur est survenue lors de la création du ticket.');
-                }
-                break;
-
-            case 'close':
-                if (!message.channel.name.startsWith('ticket-')) {
-                    return message.reply('❌ Cette commande ne peut être utilisée que dans un canal de ticket.');
-                }
-
-                try {
-                    await message.channel.delete();
-                } catch (error) {
-                    console.error('Erreur lors de la suppression du ticket:', error);
-                    message.reply('❌ Une erreur est survenue lors de la fermeture du ticket.');
-                }
-                break;
-
-            default:
-                message.reply('❌ Utilisation : `+ticket <create/close>`');
+        if (args[0]?.toLowerCase() !== 'panel') {
+            return message.reply('❌ Usage: `+ticket panel`');
         }
+
+        const embed = new EmbedBuilder()
+            .setColor(0x0099ff)
+            .setTitle('🎫 Système de Tickets')
+            .setDescription('Cliquez sur le bouton correspondant à votre besoin :')
+            .addFields(
+                { name: '❓ Support', value: 'Pour toute demande d\'aide', inline: false },
+                { name: '🚨 Signalement', value: 'Pour signaler un comportement inapproprié', inline: false },
+                { name: '🤝 Partenariat', value: 'Pour proposer un partenariat', inline: false }
+            )
+            .setFooter({ text: message.guild.name, iconURL: message.guild.iconURL({ dynamic: true }) });
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('ticket_support')
+                .setLabel('Support')
+                .setEmoji('❓')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('ticket_report')
+                .setLabel('Signalement')
+                .setEmoji('🚨')
+                .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+                .setCustomId('ticket_partner')
+                .setLabel('Partenariat')
+                .setEmoji('🤝')
+                .setStyle(ButtonStyle.Success)
+        );
+
+        await message.channel.send({
+            embeds: [embed],
+            components: [row]
+        });
     }
 };

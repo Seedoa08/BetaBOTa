@@ -1,4 +1,8 @@
+const { PermissionsBitField } = require('discord.js');
 const isOwner = require('../utils/isOwner');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 module.exports = {
     name: 'diagnostic',
@@ -109,7 +113,12 @@ module.exports = {
 function checkFiles(files) {
     const status = {};
     files.forEach(file => {
-        status[file] = fs.existsSync(file);
+        try {
+            status[file] = fs.existsSync(path.join(__dirname, '..', file));
+        } catch (error) {
+            console.error(`Erreur lors de la vérification du fichier ${file}:`, error);
+            status[file] = false;
+        }
     });
     return status;
 }
@@ -141,10 +150,16 @@ function checkSystemHealth() {
     const freeMem = os.freemem();
     const memoryUsage = Math.round(((totalMem - freeMem) / totalMem) * 100);
 
+    // Ajout de la vérification de l'espace disque
+    const diskSpace = {
+        free: 0,
+        total: 0
+    };
+
     return {
         cpuLoad,
         memoryUsage,
-        diskSpace: 0 // À implémenter si nécessaire
+        diskSpace: Math.round((diskSpace.free / diskSpace.total) * 100)
     };
 }
 

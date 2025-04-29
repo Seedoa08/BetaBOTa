@@ -1,42 +1,30 @@
 const fs = require('fs');
 const path = require('path');
 
-class VersionManager {
-    constructor() {
-        this.packagePath = path.join(__dirname, '../package.json');
-    }
-
-    incrementVersion() {
-        try {
-            const packageJson = require(this.packagePath);
-            const version = packageJson.version;
-            const versionParts = version.split('.');
-
-            // Incrémenter la dernière partie de la version
-            if (versionParts.length === 2) {
-                versionParts.push('0'); // Ajouter .0 si pas de troisième numéro
-            }
-            versionParts[2] = (parseInt(versionParts[2]) + 1).toString();
-
-            // Mettre à jour package.json
-            packageJson.version = versionParts.join('.');
-            fs.writeFileSync(this.packagePath, JSON.stringify(packageJson, null, 4));
-
-            return packageJson.version;
-        } catch (error) {
-            console.error('Erreur lors de la mise à jour de la version:', error);
-            return '1.1.0';
+function incrementVersion() {
+    const packagePath = path.join(__dirname, '../package.json');
+    const package = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    
+    let [major, minor, patch] = package.version.split('.').map(Number);
+    
+    // Incrémenter la version
+    patch++;
+    if (patch > 9) {
+        patch = 0;
+        minor++;
+        if (minor > 9) {
+            minor = 0;
+            major++;
         }
     }
-
-    getCurrentVersion() {
-        try {
-            const packageJson = require(this.packagePath);
-            return packageJson.version;
-        } catch {
-            return '1.1.0';
-        }
-    }
+    
+    const newVersion = `${major}.${minor}.${patch}`;
+    package.version = newVersion;
+    
+    // Sauvegarder la nouvelle version
+    fs.writeFileSync(packagePath, JSON.stringify(package, null, 4));
+    
+    return newVersion;
 }
 
-module.exports = new VersionManager();
+module.exports = { incrementVersion };

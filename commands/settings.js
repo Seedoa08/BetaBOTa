@@ -1,5 +1,41 @@
 const { PermissionsBitField } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 const isOwner = require('../utils/isOwner');
+
+// Définir les chemins des fichiers
+const dataPath = path.join(__dirname, '../data');
+const settingsFile = path.join(dataPath, 'settings.json');
+
+// Créer le dossier data s'il n'existe pas
+if (!fs.existsSync(dataPath)) {
+    fs.mkdirSync(dataPath, { recursive: true });
+}
+
+// Structure par défaut des paramètres
+const defaultSettings = {
+    moderation: {
+        enabled: true,
+        logChannel: null,
+        automod: false,
+        muteRole: null
+    },
+    welcome: {
+        enabled: false,
+        channel: null,
+        message: 'Bienvenue {user} sur {server}!'
+    },
+    levels: {
+        enabled: false,
+        announceChannel: null,
+        xpRate: 1
+    }
+};
+
+// Initialiser le fichier settings s'il n'existe pas
+if (!fs.existsSync(settingsFile)) {
+    fs.writeFileSync(settingsFile, JSON.stringify(defaultSettings, null, 2));
+}
 
 module.exports = {
     name: 'settings',
