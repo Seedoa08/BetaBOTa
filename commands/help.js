@@ -168,6 +168,13 @@ module.exports = {
         });
 
         collector.on('collect', async i => {
+            if (i.user.id !== message.author.id) {
+                return i.reply({ 
+                    content: '❌ Ces boutons ne sont pas pour vous!', 
+                    flags: 1 << 6 // Correction ici
+                });
+            }
+
             try {
                 await i.deferUpdate();
                 

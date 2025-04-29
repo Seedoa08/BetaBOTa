@@ -77,32 +77,27 @@ module.exports = {
         });
 
         collector.on('collect', async i => {
-            try {
-                if (i.user.id !== message.author.id) {
-                    await i.reply({ 
-                        content: '❌ Ces boutons ne sont pas pour vous!', 
-                        ephemeral: true 
-                    });
-                    return;
-                }
-
-                switch (i.customId) {
-                    case 'helpall_first': currentPage = 0; break;
-                    case 'helpall_prev': currentPage = Math.max(0, currentPage - 1); break;
-                    case 'helpall_next': currentPage = Math.min(pages.length - 1, currentPage + 1); break;
-                    case 'helpall_last': currentPage = pages.length - 1; break;
-                }
-
-                const newRow = getButtons(currentPage);
-
-                await i.deferUpdate();
-                await i.message.edit({
-                    embeds: [pages[currentPage]],
-                    components: [newRow]
+            if (i.user.id !== message.author.id) {
+                return i.reply({ 
+                    content: '❌ Vous ne pouvez pas utiliser ces boutons.', 
+                    flags: 1 << 6 // Correction ici
                 });
-            } catch (error) {
-                console.error('Erreur interaction:', error);
             }
+
+            switch (i.customId) {
+                case 'helpall_first': currentPage = 0; break;
+                case 'helpall_prev': currentPage = Math.max(0, currentPage - 1); break;
+                case 'helpall_next': currentPage = Math.min(pages.length - 1, currentPage + 1); break;
+                case 'helpall_last': currentPage = pages.length - 1; break;
+            }
+
+            const newRow = getButtons(currentPage);
+
+            await i.deferUpdate();
+            await i.message.edit({
+                embeds: [pages[currentPage]],
+                components: [newRow]
+            });
         });
 
         collector.on('end', () => {

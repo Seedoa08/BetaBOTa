@@ -96,6 +96,8 @@ client.on('interactionCreate', async interaction => {
     
     if (interaction.customId.startsWith('ticket_')) {
         try {
+            await interaction.deferReply({ flags: 1 << 6 }); // Correction ici
+
             const type = interaction.customId.split('_')[1];
             
             const types = {
@@ -121,8 +123,6 @@ client.on('interactionCreate', async interaction => {
 
             const ticketType = types[type];
             if (!ticketType) return;
-
-            await interaction.deferReply({ ephemeral: true });
 
             // Trouver les rôles admin
             const adminRoles = interaction.guild.roles.cache
@@ -184,14 +184,14 @@ client.on('interactionCreate', async interaction => {
 
             await interaction.editReply({
                 content: `✅ Votre ticket a été créé: ${channel}`,
-                ephemeral: true
+                flags: 1 << 6 // Correction ici
             });
 
         } catch (error) {
             console.error('Erreur ticket:', error);
             await interaction.editReply({
                 content: '❌ Une erreur est survenue lors de la création du ticket.',
-                ephemeral: true
+                flags: 1 << 6 // Correction ici
             });
         }
     }
