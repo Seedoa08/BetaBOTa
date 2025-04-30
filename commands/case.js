@@ -1,16 +1,14 @@
 const { PermissionsBitField } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 const isOwner = require('../utils/isOwner');
 
 module.exports = {
     name: 'case',
-    description: 'Affiche les informations d\'un cas de modération',
+    description: 'Gère les cas de modération',
     usage: '+case <view/edit/delete> <ID>',
+    category: 'Modération',
     permissions: 'ManageMessages',
-    variables: [
-        { name: 'view', description: 'Affiche les détails d\'un cas' },
-        { name: 'edit', description: 'Modifie un cas' },
-        { name: 'delete', description: 'Supprime un cas' }
-    ],
     async execute(message, args) {
         // Bypass des permissions pour les owners
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ViewAuditLog)) {

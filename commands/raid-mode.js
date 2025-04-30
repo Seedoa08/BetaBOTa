@@ -1,92 +1,123 @@
-const { PermissionsBitField } = require('discord.js');
-const isOwner = require('../utils/isOwner');
+const { PermissionsBitField, EmbedBuilder } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+
+const raidConfigPath = path.join(__dirname, '../config/raidmode.json');
+
+// Configuration par défaut
+const defaultConfig = {
+    enabled: false,
+    strict: false,
+    lockdown: false,
+    protections: {
+        joinDelay: 5000,
+        accountAge: 7,
+        avatarRequired: true,
+        memberScreening: true,
+        autoMute: true
+    },
+    whitelist: {
+        roles: [],
+        users: []
+    },
+    logChannel: null
+};
 
 module.exports = {
     name: 'raid-mode',
     description: 'Active/désactive le mode raid',
-    usage: '+raid-mode <on/off> [--strict] [--lockdown]',
+    usage: '+raid-mode <on/off/status> [--strict] [--lockdown]',
+    category: 'Modération',
     permissions: 'Administrator',
-    variables: [
-        { name: '--strict', description: 'Mode strict avec vérification renforcée' },
-        { name: '--lockdown', description: 'Verrouille tous les canaux en cas de raid' }
-    ],
+    
     async execute(message, args) {
-        // Bypass des permissions pour les owners
-        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Vous devez être administrateur pour utiliser cette commande.');
+        // Charger ou créer la configuration
+        let config = defaultConfig;
+        if (fs.existsSync(raidConfigPath)) {
+            config = JSON.parse(fs.readFileSync(raidConfigPath));
         }
 
-        const action = args[0]?.toLowerCase();
+        const mode = args[0]?.toLowerCase();
         const strict = args.includes('--strict');
         const lockdown = args.includes('--lockdown');
 
-        if (!['on', 'off'].includes(action)) {
-            return message.reply('❌ Utilisez `on` ou `off` pour gérer le mode anti-raid.');
+        if (!['on', 'off', 'status'].includes(mode)) {
+            return message.reply('❌ Usage: `+raid-mode <on/off/status> [--strict] [--lockdown]`');
         }
 
-        if (action === 'on') {
-            // Configuration du détecteur de raid
-            const raidDetector = new RaidDetection({
-                joinThreshold: strict ? 5 : 10,
-                timeWindow: 30000,
-                messageThreshold: strict ? 15 : 20
-            });
+        if (mode === 'status') {
+            const embed = new EmbedBuilder()
+                .setColor(config.enabled ? 0xff0000 : 0x00ff00)
+                .setTitle('🛡️ Statut Anti-Raid')
+                .setDescription(config.enabled ? '⚠️ Mode Anti-Raid actif' : '✅ Mode Anti-Raid inactif')
+                .addFields([
+                    {
+                        name: 'État des protections',
+                        value: [
+                            `Mode strict: ${config.strict ? '✅' : '❌'}`,
+                            `Verrouillage: ${config.lockdown ? '✅' : '❌'}`,
+                            `Délai entre joins: ${config.protections.joinDelay}ms`,
+                            `Âge minimum: ${config.protections.accountAge} jours`,
+                            `Avatar requis: ${config.protections.avatarRequired ? '✅' : '❌'}`,
+                            `Vérification: ${config.protections.memberScreening ? '✅' : '❌'}`
+                        ].join('\n')
+                    }
+                ])
+                .setFooter({ text: `Salon logs: ${config.logChannel ? `<#${config.logChannel}>` : 'Non défini'}` })
+                .setTimestamp();
 
-            // Événement de détection de raid
-            raidDetector.on('raidDetected', async (data) => {
-                const { guild, score, suspiciousUsers } = data;
-
-                const logEmbed = {
-                    color: 0xff0000,
-                    title: '🚨 RAID DÉTECTÉ',
-                    description: 'Des activités suspectes ont été détectées!',
-                    fields: [
-                        { name: 'Score de menace', value: `${(score * 100).toFixed(2)}%` },
-                        { name: 'Comptes suspects', value: `${suspiciousUsers.length} utilisateurs` }
-                    ],
-                    timestamp: new Date()
-                };
-
-                // Actions automatiques
-                if (lockdown) {
-                    await guild.channels.cache.forEach(async channel => {
-                        if (channel.manageable) {
-                            await channel.permissionOverwrites.edit(guild.roles.everyone, {
-                                SendMessages: false,
-                                AddReactions: false
-                            });
-                        }
-                    });
-                    logEmbed.fields.push({ name: '🔒 Action', value: 'Serveur verrouillé automatiquement' });
-                }
-
-                const modChannel = guild.channels.cache.find(c => 
-                    c.name.includes('mod-logs') || c.name.includes('moderation')
-                );
-
-                if (modChannel) {
-                    await modChannel.send({ embeds: [logEmbed] });
-                }
-            });
-
-            message.reply({
-                embeds: [{
-                    color: 0x00ff00,
-                    title: '🛡️ Mode Anti-Raid Activé',
-                    description: `Protection configurée avec succès\n${strict ? '⚠️ Mode strict activé\n' : ''}${lockdown ? '🔒 Verrouillage automatique activé' : ''}`,
-                    timestamp: new Date()
-                }]
-            });
-        } else {
-            // Désactivation du mode raid
-            message.reply({
-                embeds: [{
-                    color: 0xff9900,
-                    title: '🛡️ Mode Anti-Raid Désactivé',
-                    description: 'La protection anti-raid a été désactivée',
-                    timestamp: new Date()
-                }]
-            });
+            return message.reply({ embeds: [embed] });
         }
+
+        // Activer/Désactiver le mode raid
+        config.enabled = mode === 'on';
+        config.strict = strict;
+        config.lockdown = lockdown;
+
+        if (config.enabled) {
+            // Appliquer les mesures anti-raid
+            if (lockdown) {
+                // Verrouiller tous les salons publics
+                message.guild.channels.cache.forEach(async channel => {
+                    if (channel.type === 0) { // Type text
+                        await channel.permissionOverwrites.edit(message.guild.roles.everyone, {
+                            SendMessages: false
+                        });
+                    }
+                });
+            }
+
+            if (strict) {
+                // Activer les mesures strictes
+                config.protections.joinDelay = 10000; // 10 secondes
+                config.protections.accountAge = 30; // 30 jours
+                config.protections.avatarRequired = true;
+                config.protections.autoMute = true;
+            }
+        }
+
+        // Sauvegarder la configuration
+        fs.writeFileSync(raidConfigPath, JSON.stringify(config, null, 4));
+
+        const embed = new EmbedBuilder()
+            .setColor(config.enabled ? 0xff0000 : 0x00ff00)
+            .setTitle('🛡️ Mode Anti-Raid')
+            .setDescription(config.enabled ? 
+                `⚠️ Mode Anti-Raid activé\n${strict ? '🔒 Mode strict activé\n' : ''}${lockdown ? '🔐 Verrouillage activé' : ''}` :
+                '✅ Mode Anti-Raid désactivé')
+            .addFields([
+                {
+                    name: 'Protections actives',
+                    value: [
+                        `• Délai entre joins: ${config.protections.joinDelay}ms`,
+                        `• Âge minimum: ${config.protections.accountAge} jours`,
+                        `• Avatar requis: ${config.protections.avatarRequired ? '✅' : '❌'}`,
+                        `• Vérification: ${config.protections.memberScreening ? '✅' : '❌'}`
+                    ].join('\n')
+                }
+            ])
+            .setTimestamp();
+
+        message.reply({ embeds: [embed] });
     }
 };

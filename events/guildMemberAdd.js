@@ -1,37 +1,25 @@
 const fs = require('fs');
 const path = require('path');
+const { sendWelcomeMessage } = require('../commands/welcome');
 
-const configPath = path.join(__dirname, '../data/welcomeConfig.json');
+module.exports = {
+    name: 'guildMemberAdd',
+    async execute(member) {
+        const welcomeConfigPath = path.join(__dirname, '../config/welcome.json');
+        
+        // Vérifier si la configuration existe
+        if (!fs.existsSync(welcomeConfigPath)) return;
+        
+        const config = JSON.parse(fs.readFileSync(welcomeConfigPath));
+        if (!config.enabled || !config.channel) return;
 
-module.exports = async (member) => {
-    if (!fs.existsSync(configPath)) return;
-    
-    try {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        if (!config.enabled || !config.channelId) return;
+        const welcomeChannel = member.guild.channels.cache.get(config.channel);
+        if (!welcomeChannel) return;
 
-        const channel = member.guild.channels.cache.get(config.channelId);
-        if (!channel) return;
-
-        const welcomeEmbed = {
-            color: parseInt(config.color?.replace('#', '') || '0099ff', 16),
-            title: '👋 Bienvenue !',
-            description: config.message
-                .replace('{user}', member.toString())
-                .replace('{server}', member.guild.name)
-                .replace('{count}', member.guild.memberCount),
-            thumbnail: {
-                url: member.user.displayAvatarURL({ dynamic: true })
-            },
-            footer: {
-                text: config.footer.replace('{date}', new Date().toLocaleDateString()),
-                icon_url: member.guild.iconURL({ dynamic: true })
-            },
-            timestamp: new Date()
-        };
-
-        await channel.send({ embeds: [welcomeEmbed] });
-    } catch (error) {
-        console.error('Erreur welcome:', error);
+        try {
+            await sendWelcomeMessage(member, welcomeChannel, config);
+        } catch (error) {
+            console.error('Erreur lors de l\'envoi du message de bienvenue:', error);
+        }
     }
 };

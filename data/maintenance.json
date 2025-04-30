@@ -1,5 +1,11 @@
 {
-    "active": false,
-    "reason": null,
-    "timestamp": null
+    "enabled": false,
+    "reason": "Maintenance en cours...",
+    "timestamp": 1746020631968,
+    "enabledBy": "4185",
+    "allowedCommands": [
+        "help",
+        "ping",
+        "maintenance"
+    ]
 }

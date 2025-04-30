@@ -7,17 +7,17 @@
         ],
         "discriminations": [
             "negro", "negre", "nègre", "feuj", "bicot", "bougnoule", "youpin", 
-            "sale arabe", "sale juif", "sale noir", "pédé", "tapette"
+            "pédé"
         ],
         "threats": [
             "je vais te tuer", "crève", "suicide toi", "va mourir", "nique ta mere",
-            "je vais te niquer", "je vais te retrouver"
+            "je vais te niquer"
         ]
     },
     "english": {
         "insults": [
             "fuck", "shit", "bitch", "asshole", "cunt", "whore", "slut", "dick",
-            "pussy", "stfu", "retard", "idiot", "moron", "bastard"
+            "pussy", "stfu"
         ],
         "discriminations": [
             "nigger", "nigga", "faggot", "fag", "dyke", "tranny", "kike",
@@ -25,7 +25,7 @@
         ],
         "threats": [
             "kill yourself", "die", "kms", "kill you", "murder you",
-            "end you", "find you"
+            "find you"
         ]
     },
     "variations": {

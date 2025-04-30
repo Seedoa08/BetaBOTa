@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
 const isOwner = require('../utils/isOwner');
 
 module.exports = {
@@ -44,38 +44,76 @@ module.exports = {
             "🛡️ Modération": {
                 color: 0xff0000,
                 description: "Commandes de gestion et de modération du serveur",
-                commands: ['ban', 'kick', 'mute', 'unmute', 'warn', 'clear']
+                commands: [
+                    'ban', 'kick', 'mute', 'unmute', 'warn', 'clearwarns', 'clear',
+                    'lock', 'unlock', 'timeout', 'unban', 'history', 'case',
+                    'slowmode', 'purge', 'nuke'
+                ]
             },
             "⚙️ Configuration": {
                 color: 0x00ff00,
                 description: "Paramètres et configuration du bot",
-                commands: ['anti-raid', 'settings', 'automod', 'welcome']
+                commands: [
+                    'raid', 'settings', 'automod', 'welcome', 'goodbye', 
+                    'logs', 'autorole', 'setprefix', 'setlang', 'backup',
+                    'antispam', 'antilink', 'blacklist'
+                ]
             },
             "📊 Utilitaire": {
                 color: 0x0099ff,
                 description: "Outils et commandes pratiques",
-                commands: ['ping', 'serverinfo', 'userinfo', 'help', 'info']
+                commands: [
+                    'ping', 'serverinfo', 'userinfo', 'help', 'info', 'avatar',
+                    'banner', 'roleinfo', 'channelinfo', 'uptime', 'botinfo',
+                    'membercount', 'snipe', 'weather', 'status'
+                ]
             },
             "🎫 Support": {
                 color: 0xff9900,
                 description: "Système de support et tickets",
-                commands: ['ticket', 'verify']
+                commands: [
+                    'ticket', 'verify', 'report', 'suggest', 'bug', 'feedback',
+                    'contact', 'support'
+                ]
+            },
+            "⭐ Premium": {
+                color: 0xf1c40f,
+                description: "Commandes réservées aux serveurs premium",
+                commands: [
+                    'giveaway', 'reactionrole', 'customcommand', 'autoresponder',
+                    'autoreact', 'customembed', 'premium'
+                ]
+            },
+            "👑 Owner": {
+                color: 0xe74c3c,
+                description: "Commandes réservées aux propriétaires",
+                commands: [
+                    'eval', 'reload', 'maintenance', 'blacklist', 'leave',
+                    'announce', 'setactivity', 'setstatus'
+                ]
             }
         };
 
         // Filtrer les commandes selon les permissions
-        const embeds = Object.entries(categories).map(([categoryName, category]) => {
+        const embeds = [];
+        let totalCommands = 0;
+        
+        Object.entries(categories).forEach(([categoryName, category], index) => {
             const availableCommands = category.commands.filter(cmdName => {
                 const cmd = message.client.commands.get(cmdName);
                 if (!cmd) return false;
                 if (isOwner(message.author.id)) return true;
                 if (!cmd.permissions) return true;
-                return message.member.permissions.has(cmd.permissions);
+                
+                // Vérifier si la permission existe dans PermissionsBitField
+                const permFlag = PermissionsBitField.Flags[cmd.permissions];
+                return permFlag ? message.member.permissions.has(permFlag) : false;
             });
 
-            if (availableCommands.length === 0) return null;
+            if (availableCommands.length === 0) return;
+            totalCommands += availableCommands.length;
 
-            return {
+            embeds.push({
                 color: category.color,
                 author: {
                     name: categoryName,
@@ -89,49 +127,14 @@ module.exports = {
                     }).join('\n')
                 ].join('\n'),
                 footer: {
-                    text: `Page {current}/{total} • ${message.client.commands.size} commandes`,
+                    text: `Page ${index + 1}/${Object.keys(categories).length} • ${availableCommands.length} commandes`,
                     icon_url: message.author.displayAvatarURL({ dynamic: true })
                 },
                 timestamp: new Date()
-            };
-        }).filter(embed => embed !== null);
+            });
+        });
 
         let currentPage = 0;
-
-        const getButtons = (current, total) => {
-            return new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('first')
-                    .setLabel('⏪')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(current === 0),
-                new ButtonBuilder()
-                    .setCustomId('previous')
-                    .setLabel('◀️')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(current === 0),
-                new ButtonBuilder()
-                    .setCustomId('next')
-                    .setLabel('▶️')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(current === total - 1),
-                new ButtonBuilder()
-                    .setCustomId('last')
-                    .setLabel('⏩')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(current === total - 1)
-            );
-        };
-
-        // Envoyer le premier embed avec les boutons
-        if (embeds.length === 0) {
-            return message.reply('❌ Aucune commande disponible.');
-        }
-
-        const embed = embeds[currentPage];
-        embed.footer.text = embed.footer.text
-            .replace('{current}', currentPage + 1)
-            .replace('{total}', embeds.length);
 
         const row = new ActionRowBuilder()
             .addComponents(
@@ -157,27 +160,25 @@ module.exports = {
                     .setDisabled(currentPage === embeds.length - 1)
             );
 
+        // Envoyer le premier embed avec les boutons
+        if (embeds.length === 0) {
+            return message.reply('❌ Aucune commande disponible.');
+        }
+
         const helpMessage = await message.reply({
             embeds: [embeds[currentPage]],
             components: [row]
         });
 
         const collector = helpMessage.createMessageComponentCollector({
-            filter: i => i.user.id === message.author.id && i.message.id === helpMessage.id,
+            filter: i => i.user.id === message.author.id,
             time: 60000
         });
 
         collector.on('collect', async i => {
-            if (i.user.id !== message.author.id) {
-                return i.reply({ 
-                    content: '❌ Ces boutons ne sont pas pour vous!', 
-                    flags: 1 << 6 // Correction ici
-                });
-            }
-
             try {
                 await i.deferUpdate();
-                
+
                 switch (i.customId) {
                     case 'help_first': currentPage = 0; break;
                     case 'help_prev': currentPage = Math.max(0, currentPage - 1); break;
@@ -209,8 +210,11 @@ module.exports = {
                             .setDisabled(currentPage === embeds.length - 1)
                     );
 
+                const newEmbed = {...embeds[currentPage]};
+                newEmbed.footer.text = `Page ${currentPage + 1}/${embeds.length} • ${embeds[currentPage].description.split('\n').length - 2} commandes`;
+
                 await helpMessage.edit({
-                    embeds: [embeds[currentPage]],
+                    embeds: [newEmbed],
                     components: [newRow]
                 });
             } catch (error) {

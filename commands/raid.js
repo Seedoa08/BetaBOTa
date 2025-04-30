@@ -1,80 +1,188 @@
-const { PermissionsBitField } = require('discord.js');
-const isOwner = require('../utils/isOwner');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+
+const raidConfigPath = path.join(__dirname, '../config/raid.json');
+
+// Configuration par défaut
+const defaultConfig = {
+    enabled: false,
+    mode: 'normal',
+    protection: {
+        joinDelay: 5000,
+        accountAge: 7,
+        avatarRequired: true,
+        memberScreening: true,
+        autoMute: true,
+        massBan: true,
+        massKick: true,
+        channelCreate: true,
+        roleDelete: true,
+        webhookCreate: true
+    },
+    thresholds: {
+        joinRate: 5,
+        joinTime: 10,
+        banRate: 3,
+        kickRate: 3,
+        channelRate: 2,
+        roleRate: 2
+    },
+    punishments: {
+        type: 'kick', // 'kick', 'ban', 'timeout'
+        duration: '1h' // Pour timeout
+    },
+    whitelist: {
+        users: [],
+        roles: []
+    },
+    logChannel: null
+};
 
 module.exports = {
     name: 'raid',
-    description: 'Gère les paramètres anti-raid',
-    usage: '+raid <on/off>',
+    description: 'Système de protection anti-raid complet',
+    usage: '+raid <on/off/config/status/strict/lockdown>',
+    category: 'Administration',
     permissions: 'Administrator',
-    variables: [
-        { name: 'on', description: 'Active le mode raid immédiatement' },
-        { name: 'off', description: 'Désactive le mode raid' }
-    ],
+    
     async execute(message, args) {
-        // Bypass des permissions pour les owners
-        if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            return message.reply('❌ Vous devez être administrateur pour gérer l\'anti-raid.');
+        // Charger ou créer la configuration
+        let config = defaultConfig;
+        if (fs.existsSync(raidConfigPath)) {
+            config = JSON.parse(fs.readFileSync(raidConfigPath));
         }
 
-        const action = args[0]?.toLowerCase();
-        if (!['on', 'off'].includes(action)) {
-            return message.reply('❌ Utilisation: `+raid on` ou `+raid off`');
+        const subCommand = args[0]?.toLowerCase();
+
+        if (!['on', 'off', 'config', 'status', 'strict', 'lockdown'].includes(subCommand)) {
+            return message.reply('❌ Usage: `+raid <on/off/config/status/strict/lockdown>`');
         }
 
-        try {
-            if (action === 'on') {
-                // Actions immédiates de protection
-                await message.guild.setVerificationLevel(4); // Niveau le plus élevé
-                
-                // Verrouiller tous les canaux publics
-                const channels = message.guild.channels.cache.filter(c => c.type === 0); // 0 = GUILD_TEXT
-                await Promise.all(channels.map(channel => 
+        switch (subCommand) {
+            case 'on':
+                config.enabled = true;
+                config.mode = 'normal';
+                break;
+
+            case 'off':
+                config.enabled = false;
+                // Désactiver le lockdown si actif
+                if (config.mode === 'lockdown') {
+                    message.guild.channels.cache.forEach(channel => {
+                        channel.permissionOverwrites.edit(message.guild.roles.everyone, {
+                            SendMessages: null
+                        }).catch(() => {});
+                    });
+                }
+                break;
+
+            case 'strict':
+                config.enabled = true;
+                config.mode = 'strict';
+                config.protection.accountAge = 30;
+                config.protection.avatarRequired = true;
+                config.thresholds.joinRate = 3;
+                config.thresholds.joinTime = 30;
+                config.punishments.type = 'ban';
+                break;
+
+            case 'lockdown':
+                config.enabled = true;
+                config.mode = 'lockdown';
+                // Verrouiller tous les salons
+                message.guild.channels.cache.forEach(channel => {
                     channel.permissionOverwrites.edit(message.guild.roles.everyone, {
-                        SendMessages: false,
-                        CreateInstantInvite: false
-                    })
-                ));
+                        SendMessages: false
+                    }).catch(() => {});
+                });
+                break;
 
-                // Désactiver création d'invitations
-                await message.guild.roles.everyone.setPermissions([]);
+            case 'config':
+                const configMenu = new StringSelectMenuBuilder()
+                    .setCustomId('raid_config')
+                    .setPlaceholder('Sélectionner une option à configurer')
+                    .addOptions([
+                        { label: 'Seuils', value: 'thresholds', description: 'Configurer les seuils de détection' },
+                        { label: 'Punitions', value: 'punishments', description: 'Configurer les punitions' },
+                        { label: 'Protections', value: 'protection', description: 'Configurer les protections' },
+                        { label: 'Whitelist', value: 'whitelist', description: 'Gérer la whitelist' }
+                    ]);
 
-                const raidEmbed = {
-                    color: 0xff0000,
-                    title: '🚨 MODE RAID ACTIVÉ',
-                    description: 'Mesures de protection activées:\n' +
-                        '• Niveau de vérification maximal\n' +
-                        '• Canaux verrouillés\n' +
-                        '• Invitations désactivées',
-                    timestamp: new Date()
-                };
+                const configMsg = await message.reply({
+                    embeds: [this.getStatusEmbed(config, message.guild)],
+                    components: [new ActionRowBuilder().addComponents(configMenu)]
+                });
 
-                message.channel.send({ embeds: [raidEmbed] });
+                // Collector pour le menu de configuration
+                const collector = configMsg.createMessageComponentCollector({ time: 300000 });
+                collector.on('collect', async i => {
+                    if (i.user.id !== message.author.id) return;
+                    // ... logique de configuration interactive ...
+                });
+                return;
 
-            } else {
-                // Restaurer les paramètres normaux
-                await message.guild.setVerificationLevel(2); // Niveau moyen
-                
-                // Déverrouiller les canaux
-                const channels = message.guild.channels.cache.filter(c => c.type === 0);
-                await Promise.all(channels.map(channel => 
-                    channel.permissionOverwrites.edit(message.guild.roles.everyone, {
-                        SendMessages: true,
-                        CreateInstantInvite: null
-                    })
-                ));
+            case 'status':
+                return message.reply({
+                    embeds: [this.getStatusEmbed(config, message.guild)]
+                });
+        }
 
-                const endRaidEmbed = {
-                    color: 0x00ff00,
-                    title: '✅ MODE RAID DÉSACTIVÉ',
-                    description: 'Les paramètres du serveur ont été restaurés.',
-                    timestamp: new Date()
-                };
+        // Sauvegarder la configuration
+        fs.writeFileSync(raidConfigPath, JSON.stringify(config, null, 4));
 
-                message.channel.send({ embeds: [endRaidEmbed] });
-            }
-        } catch (error) {
-            console.error('Erreur lors de la gestion du mode raid:', error);
-            message.reply('❌ Une erreur est survenue lors de l\'exécution de la commande.');
+        const embed = new EmbedBuilder()
+            .setColor(config.enabled ? 0xff0000 : 0x00ff00)
+            .setTitle('🛡️ Protection Anti-Raid')
+            .setDescription(this.getModeDescription(config))
+            .addFields([
+                {
+                    name: 'État actuel',
+                    value: `Mode: ${config.mode}\nProtection: ${config.enabled ? '✅' : '❌'}`
+                }
+            ])
+            .setTimestamp();
+
+        message.reply({ embeds: [embed] });
+    },
+
+    getStatusEmbed(config, guild) {
+        return new EmbedBuilder()
+            .setColor(config.enabled ? 0xff0000 : 0x00ff00)
+            .setTitle('🛡️ Statut Anti-Raid')
+            .setDescription(this.getModeDescription(config))
+            .addFields([
+                {
+                    name: '⚙️ Configuration',
+                    value: [
+                        `Mode: ${config.mode}`,
+                        `Protection: ${config.enabled ? '✅' : '❌'}`,
+                        `Âge minimum: ${config.protection.accountAge} jours`,
+                        `Délai entre joins: ${config.thresholds.joinRate}/${config.thresholds.joinTime}s`
+                    ].join('\n')
+                },
+                {
+                    name: '🛡️ Protections actives',
+                    value: Object.entries(config.protection)
+                        .filter(([, enabled]) => enabled)
+                        .map(([name]) => `✅ ${name}`)
+                        .join('\n') || 'Aucune protection active'
+                }
+            ])
+            .setFooter({ text: guild.name, iconURL: guild.iconURL({ dynamic: true }) })
+            .setTimestamp();
+    },
+
+    getModeDescription(config) {
+        switch (config.mode) {
+            case 'normal':
+                return '🟢 Mode normal - Protection de base contre les raids';
+            case 'strict':
+                return '🟡 Mode strict - Protection renforcée avec restrictions accrues';
+            case 'lockdown':
+                return '🔴 Mode lockdown - Serveur verrouillé, accès restreint';
+            default:
+                return '⚪ Protection désactivée';
         }
     }
 };

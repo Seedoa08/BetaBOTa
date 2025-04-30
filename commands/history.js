@@ -1,60 +1,78 @@
-const { PermissionsBitField } = require('discord.js');
+const { PermissionsBitField, EmbedBuilder } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 const isOwner = require('../utils/isOwner');
+
+const logsPath = path.join(__dirname, '../data/moderation-logs.json');
 
 module.exports = {
     name: 'history',
     description: 'Affiche l\'historique des actions de modération',
+    usage: '+history [utilisateur] [nombre]',
+    category: 'Modération',
     permissions: 'ViewAuditLog',
     async execute(message, args) {
-        // Bypass des permissions pour les owners
+        // Vérification des permissions
         if (!isOwner(message.author.id) && !message.member.permissions.has(PermissionsBitField.Flags.ViewAuditLog)) {
             return message.reply('❌ Vous n\'avez pas la permission de voir l\'historique.');
         }
 
-        const user = message.mentions.users.first();
-        if (!user) return message.reply('❌ Mentionnez un utilisateur');
+        try {
+            // Créer le dossier data s'il n'existe pas
+            const dataDir = path.join(__dirname, '../data');
+            if (!fs.existsSync(dataDir)) {
+                fs.mkdirSync(dataDir, { recursive: true });
+            }
 
-        // Charger les différents historiques
-        const sanctions = {
-            bans: JSON.parse(fs.readFileSync('./logs/moderation.json', 'utf8')).filter(log => 
-                log.action === 'ban' && log.user.id === user.id
-            ),
-            mutes: JSON.parse(fs.readFileSync('./logs/moderation.json', 'utf8')).filter(log => 
-                log.action === 'mute' && log.user.id === user.id
-            ),
-            warns: JSON.parse(fs.readFileSync('./warnings.json', 'utf8'))[user.id] || []
-        };
+            // Créer le fichier de logs s'il n'existe pas
+            if (!fs.existsSync(logsPath)) {
+                fs.writeFileSync(logsPath, JSON.stringify([], null, 4));
+            }
 
-        const embed = {
-            color: 0xff0000,
-            title: `📋 Historique des sanctions de ${user.tag}`,
-            thumbnail: { url: user.displayAvatarURL({ dynamic: true }) },
-            fields: [
-                {
-                    name: '🔨 Bannissements',
-                    value: sanctions.bans.map(ban => 
-                        `\`${new Date(ban.date).toLocaleDateString()}\` ${ban.reason}`
-                    ).join('\n') || 'Aucun bannissement'
-                },
-                {
-                    name: '🔇 Mutes',
-                    value: sanctions.mutes.map(mute =>
-                        `\`${new Date(mute.date).toLocaleDateString()}\` ${mute.duration} - ${mute.reason}`
-                    ).join('\n') || 'Aucun mute'
-                },
-                {
-                    name: '⚠️ Avertissements',
-                    value: sanctions.warns.map(warn =>
-                        `\`${new Date(warn.date).toLocaleDateString()}\` ${warn.reason}`
-                    ).join('\n') || 'Aucun avertissement'
-                }
-            ],
-            footer: {
-                text: `Total: ${sanctions.bans.length + sanctions.mutes.length + sanctions.warns.length} sanctions`
-            },
-            timestamp: new Date()
-        };
+            const logs = JSON.parse(fs.readFileSync(logsPath, 'utf8'));
+            let filteredLogs = [...logs];
+            let targetUser = null;
 
-        message.reply({ embeds: [embed] });
+            // Filtrer par utilisateur si spécifié
+            if (message.mentions.users.size > 0) {
+                targetUser = message.mentions.users.first();
+                filteredLogs = logs.filter(log => log.user?.id === targetUser.id);
+            }
+
+            // Limiter le nombre d'entrées si spécifié
+            const limit = parseInt(args[args.length - 1]) || 10;
+            filteredLogs = filteredLogs.slice(-Math.min(limit, 25));
+
+            const embed = new EmbedBuilder()
+                .setColor(0x0099ff)
+                .setTitle('📋 Historique de modération')
+                .setDescription(targetUser ? `Historique pour ${targetUser.tag}` : 'Historique global')
+                .addFields(
+                    filteredLogs.map(log => ({
+                        name: `${log.action.toUpperCase()} - ${new Date(log.date).toLocaleString()}`,
+                        value: [
+                            `**Utilisateur:** ${log.user?.tag || 'Inconnu'}`,
+                            `**Modérateur:** ${log.moderator?.tag || 'Système'}`,
+                            `**Raison:** ${log.reason || 'Non spécifiée'}`,
+                            log.duration ? `**Durée:** ${log.duration}` : ''
+                        ].filter(Boolean).join('\n')
+                    }))
+                )
+                .setFooter({
+                    text: `${filteredLogs.length} action(s) • Demandé par ${message.author.tag}`,
+                    iconURL: message.author.displayAvatarURL({ dynamic: true })
+                })
+                .setTimestamp();
+
+            if (filteredLogs.length === 0) {
+                embed.setDescription('Aucune action de modération trouvée.');
+            }
+
+            await message.reply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error('Erreur lors de la lecture de l\'historique:', error);
+            message.reply('❌ Une erreur est survenue lors de la lecture de l\'historique.');
+        }
     }
 };

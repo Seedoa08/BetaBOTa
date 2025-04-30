@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, Collection, ActionRowBuilder, ButtonBuilder, 
 const fs = require('fs');
 const path = require('path');
 const isOwner = require('./utils/isOwner');
+const { incrementVersion } = require('./utils/versionManager'); // Ajouter en haut du fichier avec les autres requires
 
 // Configuration globale intégrée
 const config = {
@@ -21,7 +22,10 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildInvites,
+        GatewayIntentBits.GuildMessageReactions
     ]
 });
 
@@ -39,15 +43,25 @@ for (const file of commandFiles) {
 
 // Événement ready
 client.once('ready', () => {
+    // Incrémenter la version au démarrage
+    const newVersion = incrementVersion();
+    
     console.log('Bot en ligne !');
+    console.log(`Version actuelle: ${newVersion || config.version}`);
+    console.log(`Inviter le bot: https://discord.com/oauth2/authorize?client_id=${client.user.id}&scope=bot&permissions=8`);
     
     client.user.setPresence({
         activities: [{ 
-            name: `${config.prefix}help | Mon prefix est ${config.prefix}`,
+            name: `${config.prefix}help | v${newVersion || config.version}`,
             type: ActivityType.Playing
         }],
         status: 'online'
     });
+});
+
+// Événement guildCreate - Quand le bot rejoint un serveur
+client.on('guildCreate', guild => {
+    console.log(`Bot ajouté au serveur: ${guild.name} (${guild.id})`);
 });
 
 // Supprimer l'ancien gestionnaire messageCreate et garder uniquement celui-ci
@@ -61,13 +75,20 @@ client.on('messageCreate', async (message) => {
 
     try {
         if (isOwner(message.author.id)) {
-            // Owner bypass
             await command.execute(message, args);
-        } else if (!command.permissions || message.member.permissions.has(command.permissions)) {
-            // Public command or user has permissions
+        } else if (!command.permissions) {
+            // Si pas de permissions requises, exécuter la commande
             await command.execute(message, args);
+        } else if (command.permissions && typeof command.permissions === 'string') {
+            // Vérifier si la permission existe dans PermissionsBitField
+            const permFlag = PermissionsBitField.Flags[command.permissions];
+            if (permFlag && message.member.permissions.has(permFlag)) {
+                await command.execute(message, args);
+            } else {
+                return message.reply(`❌ Vous n'avez pas la permission \`${command.permissions}\` nécessaire.`);
+            }
         } else {
-            return message.reply(`❌ Vous n'avez pas les permissions nécessaires pour exécuter cette commande.`);
+            return message.reply('❌ Configuration de permission invalide.');
         }
     } catch (error) {
         console.error('Erreur commande:', error);
@@ -79,15 +100,32 @@ client.on('messageCreate', async (message) => {
 process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
 
-// Ajouter l'événement messageDelete
+// Améliorer l'événement messageDelete
 client.on('messageDelete', message => {
-    if (message.author.bot) return;
-    client.snipes.set(message.channel.id, {
-        content: message.content,
-        author: message.author,
-        attachments: message.attachments,
-        timestamp: Date.now()
-    });
+    try {
+        // Ne pas snipe les messages vides ou les messages de bots
+        if (!message || !message.author || message.author.bot) return;
+        
+        // Sauvegarder le message supprimé
+        client.snipes.set(message.channel.id, {
+            content: message.content,
+            author: message.author,
+            attachments: message.attachments,
+            timestamp: Date.now(),
+            member: message.member
+        });
+
+        // Supprimer le message snipé après 5 minutes
+        setTimeout(() => {
+            if (client.snipes.get(message.channel.id)?.timestamp === Date.now()) {
+                client.snipes.delete(message.channel.id);
+            }
+        }, 300000); // 5 minutes
+
+        console.log(`Message snipé dans #${message.channel.name}: ${message.content}`);
+    } catch (error) {
+        console.error('Erreur lors du snipe:', error);
+    }
 });
 
 // Gestionnaire d'interactions pour les tickets

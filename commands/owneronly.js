@@ -1,81 +1,97 @@
 const fs = require('fs');
-const authorizedUsersFile = './authorizedUsers.json';
-const isOwner = require('../utils/isOwner');
+const path = require('path');
+
+// Chemins des fichiers
+const ownersPath = path.join(__dirname, '../utils/owners.json');
 
 module.exports = {
     name: 'owneronly',
     description: 'Gère les permissions des owners',
-    usage: '+owneronly <add/remove/list> [@utilisateur]',
-    permissions: 'OwnerOnly',
-    variables: [
-        { name: 'add', description: 'Ajoute un utilisateur à la liste des autorisés' },
-        { name: 'remove', description: 'Retire un utilisateur de la liste des autorisés' },
-        { name: 'list', description: 'Affiche la liste des utilisateurs autorisés' }
-    ],
+    usage: '+owneronly <add/remove/list/level> [@utilisateur] [niveau]',
+    category: 'Admin',
+    ownerOnly: true,
     async execute(message, args) {
-        // Cette commande est strictement réservée aux owners
-        if (!isOwner(message.author.id)) {
-            return message.reply('❌ Cette commande est réservée aux owners du bot.');
+        const owners = JSON.parse(fs.readFileSync(ownersPath, 'utf8'));
+        
+        // Vérifier le niveau de l'auteur de la commande
+        const authorLevel = Object.entries(owners.levels)
+            .find(([level, ids]) => ids.includes(message.author.id))?.[0] ?? 0;
+
+        if (authorLevel < 3) {
+            return message.reply('❌ Seuls les owners niveau 3 peuvent utiliser cette commande.');
         }
 
-        try {
-            // Initialiser le fichier avec un tableau vide s'il n'existe pas
-            if (!fs.existsSync(authorizedUsersFile)) {
-                fs.writeFileSync(authorizedUsersFile, JSON.stringify({ users: [] }, null, 4));
-            }
+        const subCommand = args[0]?.toLowerCase();
+        const mentionedUser = message.mentions.users.first();
+        const level = parseInt(args[2]);
 
-            // Charger la liste des utilisateurs autorisés
-            let data = JSON.parse(fs.readFileSync(authorizedUsersFile, 'utf8'));
-            if (!data.users) data.users = []; // S'assurer que users est un tableau
-
-            const subCommand = args[0]?.toLowerCase();
-            const targetUser = message.mentions.users.first();
-
-            switch (subCommand) {
-                case 'add':
-                    if (!targetUser) {
-                        return message.reply('❌ Vous devez mentionner un utilisateur. Exemple: `+owneronly add @utilisateur`');
-                    }
-                    if (data.users.includes(targetUser.id)) {
-                        return message.reply('❌ Cet utilisateur est déjà dans la liste des autorisés.');
-                    }
-                    data.users.push(targetUser.id);
-                    fs.writeFileSync(authorizedUsersFile, JSON.stringify(data, null, 4));
-                    return message.reply(`✅ ${targetUser.tag} a été ajouté à la liste des utilisateurs autorisés.`);
-
-                case 'remove':
-                    if (!targetUser) {
-                        return message.reply('❌ Vous devez mentionner un utilisateur. Exemple: `+owneronly remove @utilisateur`');
-                    }
-                    if (!data.users.includes(targetUser.id)) {
-                        return message.reply('❌ Cet utilisateur n\'est pas dans la liste des autorisés.');
-                    }
-                    data.users = data.users.filter(id => id !== targetUser.id);
-                    fs.writeFileSync(authorizedUsersFile, JSON.stringify(data, null, 4));
-                    return message.reply(`✅ ${targetUser.tag} a été retiré de la liste des utilisateurs autorisés.`);
-
-                case 'list':
-                    if (data.users.length === 0) {
-                        return message.reply('📋 La liste des utilisateurs autorisés est vide.');
-                    }
-                    const userList = await Promise.all(
-                        data.users.map(async (id) => {
-                            try {
-                                const user = await message.client.users.fetch(id);
-                                return `- ${user.tag} (${id})`;
-                            } catch {
-                                return `- ID invalide: ${id}`;
-                            }
-                        })
-                    );
-                    return message.reply(`📋 Liste des utilisateurs autorisés :\n${userList.join('\n')}`);
-
-                default:
-                    return message.reply('❌ Commande invalide. Utilisez `add`, `remove` ou `list`.');
-            }
-        } catch (error) {
-            console.error('Erreur dans la commande owneronly:', error);
-            message.reply('❌ Une erreur est survenue lors de l\'exécution de la commande.');
+        if (!['add', 'remove', 'list', 'level'].includes(subCommand)) {
+            return message.reply('❌ Usage: `+owneronly <add/remove/list/level> [@utilisateur] [niveau]`');
         }
+
+        switch (subCommand) {
+            case 'add':
+                if (!mentionedUser || !level || ![1, 2, 3].includes(level)) {
+                    return message.reply('❌ Usage: `+owneronly add @utilisateur <1-3>`');
+                }
+                
+                // Vérifier si l'utilisateur est déjà owner
+                const currentLevel = Object.entries(owners.levels)
+                    .find(([_, ids]) => ids.includes(mentionedUser.id))?.[0];
+                
+                if (currentLevel) {
+                    return message.reply(`❌ Cet utilisateur est déjà owner niveau ${currentLevel}`);
+                }
+
+                owners.levels[level].push(mentionedUser.id);
+                break;
+
+            case 'remove':
+                if (!mentionedUser) {
+                    return message.reply('❌ Vous devez mentionner un utilisateur');
+                }
+
+                let removed = false;
+                for (const level in owners.levels) {
+                    const index = owners.levels[level].indexOf(mentionedUser.id);
+                    if (index !== -1) {
+                        owners.levels[level].splice(index, 1);
+                        removed = true;
+                        break;
+                    }
+                }
+
+                if (!removed) {
+                    return message.reply('❌ Cet utilisateur n\'est pas owner');
+                }
+                break;
+
+            case 'list':
+                const embed = {
+                    color: 0x0099ff,
+                    title: '👑 Liste des Owners',
+                    fields: Object.entries(owners.levels).map(([level, ids]) => ({
+                        name: `Niveau ${level} - ${owners.descriptions[level]}`,
+                        value: ids.length ? ids.map(id => `<@${id}>`).join('\n') : 'Aucun owner'
+                    })),
+                    footer: { text: 'Owner System v2.0' },
+                    timestamp: new Date()
+                };
+                return message.reply({ embeds: [embed] });
+
+            case 'level':
+                if (!mentionedUser) {
+                    return message.reply('❌ Vous devez mentionner un utilisateur');
+                }
+                
+                const userLevel = Object.entries(owners.levels)
+                    .find(([_, ids]) => ids.includes(mentionedUser.id))?.[0] ?? 'Aucun';
+                
+                return message.reply(`👑 ${mentionedUser.tag} est owner niveau ${userLevel}`);
+        }
+
+        // Sauvegarder les modifications
+        fs.writeFileSync(ownersPath, JSON.stringify(owners, null, 4));
+        message.reply('✅ La liste des owners a été mise à jour.');
     }
 };
