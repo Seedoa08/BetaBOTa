@@ -11,8 +11,5 @@
             "src": "/(.*)",
             "dest": "index.js"
         }
-    ],
-    "env": {
-        "TOKEN": "@discord_token"
-    }
+    ]
 }
