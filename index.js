@@ -20,7 +20,7 @@ app.listen(port, () => {
 // Configuration globale intégrée
 const config = {
     prefix: process.env.PREFIX || "+",
-    token: process.env.DISCORD_TOKEN || process.env.TOKEN,
+    token: process.env.TOKEN || process.env.DISCORD_TOKEN,
     owners: ["1061373376767201360"],
     version: "1.2.5"
 };
