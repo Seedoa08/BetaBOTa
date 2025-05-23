@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: discord-bot
+    env: node
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: TOKEN
+        sync: false
+      - key: NODE_ENV
+        value: production
