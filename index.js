@@ -1,15 +1,17 @@
+require('./server.js');
 const { Client, GatewayIntentBits, Collection, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, ActivityType, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const isOwner = require('./utils/isOwner');
 const { incrementVersion } = require('./utils/versionManager'); // Ajouter en haut du fichier avec les autres requires
+const keepAlive = require('./keep_alive');
 
 // Configuration globale intégrée
 const config = {
-    prefix: "+",
-    token: process.env.TOKEN || "MTM0OTc4NTYwMzMxMDYxNjYwNw.GNu8W2.5zsrgBWFUKrxvyanqZnBHOOk9s7QUKkLWvcTY0",
-    owners: ["VOTRE_ID"],
-    version: "1.2.3"
+    prefix: process.env.PREFIX || "+",
+    token: process.env.TOKEN,
+    owners: ["1061373376767201360"],
+    version: "1.2.5"
 };
 
 // Rendre la config accessible globalement
@@ -244,5 +246,7 @@ client.on('interactionCreate', async interaction => {
         }
     }
 });
+
+keepAlive();
 
 client.login(config.token);
