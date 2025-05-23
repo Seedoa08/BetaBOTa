@@ -5,11 +5,22 @@ const path = require('path');
 const isOwner = require('./utils/isOwner');
 const { incrementVersion } = require('./utils/versionManager'); // Ajouter en haut du fichier avec les autres requires
 const keepAlive = require('./keep_alive');
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
+    res.send('Bot is running!');
+});
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+});
 
 // Configuration globale intégrée
 const config = {
     prefix: process.env.PREFIX || "+",
-    token: process.env.TOKEN,
+    token: process.env.DISCORD_TOKEN || process.env.TOKEN,
     owners: ["1061373376767201360"],
     version: "1.2.5"
 };

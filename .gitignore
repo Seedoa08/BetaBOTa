@@ -6,3 +6,4 @@ backups/
 config.json
 .DS_Store
 commands/example.js
+.vercel
